@@ -1,0 +1,2303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEBANJAN'S CREATION — Smart City Live Intelligence Dashboard</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg-0:#070b10;
+  --bg-1:#0c131b;
+  --bg-2:#101a24;
+  --panel:#0f1821;
+  --line:#1c2a37;
+  --line-soft:#152029;
+  --text-0:#e7eef4;
+  --text-1:#9fb3c2;
+  --text-2:#5f7c8a;
+  --text-dim:#6d8395;
+  --cyan:#4fd1c5;
+  --cyan-dim:#245a55;
+  --amber:#f0b429;
+  --violet:#b18cf2;
+  --blue:#5aa9e6;
+  --water:#38bdf8;
+  --yellow:#ffd54a;
+  --red:#ff6b6b;
+  --green:#5bd68a;
+  --radius:14px;
+  --radius-sm:8px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--bg-0);color:var(--text-0);font-family:'Space Grotesk',sans-serif;height:100%;}
+::selection{background:var(--cyan-dim);color:#fff;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+button{font-family:inherit;cursor:pointer;}
+input{font-family:inherit;}
+a{color:inherit;}
+
+/* ---------- Watermark ---------- */
+.watermark{
+  position:fixed;inset:0;pointer-events:none;z-index:0;
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;
+}
+.watermark span{
+  font-family:'Space Grotesk',sans-serif;
+  font-weight:700;
+  font-size:min(11vw,180px);
+  color:rgba(79,209,197,0.035);
+  letter-spacing:6px;
+  white-space:nowrap;
+  transform:rotate(-8deg);
+  user-select:none;
+}
+
+/* ---------- App shell ---------- */
+.app{
+  position:relative;z-index:1;
+  display:grid;
+  grid-template-columns:76px 1fr;
+  grid-template-rows:64px 1fr;
+  height:100vh;
+  grid-template-areas:
+    "sidebar topbar"
+    "sidebar main";
+}
+.app.expanded{grid-template-columns:220px 1fr;}
+
+/* ---------- Sidebar ---------- */
+.sidebar{
+  grid-area:sidebar;
+  background:linear-gradient(180deg,var(--bg-1),var(--bg-0));
+  border-right:1px solid var(--line);
+  display:flex;flex-direction:column;
+  padding:14px 0;
+  overflow-y:auto;
+}
+.sidebar-toggle{
+  display:flex;align-items:center;justify-content:center;
+  width:36px;height:36px;margin:0 auto 18px;
+  background:var(--bg-2);border:1px solid var(--line);border-radius:8px;
+  color:var(--text-1);font-size:14px;
+}
+.sidebar-toggle:hover{color:var(--cyan);border-color:var(--cyan-dim);}
+.nav-item{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 0;margin:2px 10px;
+  border-radius:9px;
+  color:var(--text-1);
+  font-size:13px;font-weight:500;
+  white-space:nowrap;overflow:hidden;
+  border:1px solid transparent;
+  transition:background .15s,color .15s,border-color .15s;
+}
+.app:not(.expanded) .nav-item{justify-content:center;padding:11px 0;}
+.app.expanded .nav-item{padding:11px 14px;}
+.nav-icon{font-size:17px;min-width:20px;text-align:center;}
+.nav-item:hover{background:var(--bg-2);color:var(--text-0);}
+.nav-item.active{background:rgba(79,209,197,.08);color:var(--cyan);border-color:var(--cyan-dim);}
+.nav-label{display:none;}
+.app.expanded .nav-label{display:inline;}
+.nav-spacer{flex:1;}
+.sidebar-foot{padding:10px 14px;font-size:10px;color:var(--text-dim);text-align:center;letter-spacing:.5px;}
+.app:not(.expanded) .sidebar-foot{display:none;}
+
+/* ---------- Topbar ---------- */
+.topbar{
+  grid-area:topbar;
+  display:flex;align-items:center;gap:18px;
+  padding:0 22px;
+  background:var(--bg-1);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;flex-direction:column;line-height:1.1;margin-right:8px;}
+.brand-main{font-weight:700;font-size:15px;letter-spacing:.5px;}
+.brand-sub{font-size:10px;color:var(--text-dim);letter-spacing:1.2px;text-transform:uppercase;}
+.topbar-search{
+  flex:1;max-width:420px;
+  display:flex;align-items:center;gap:8px;
+  background:var(--bg-2);border:1px solid var(--line);border-radius:9px;
+  padding:8px 12px;
+}
+.topbar-search input{
+  background:transparent;border:none;outline:none;color:var(--text-0);font-size:13px;width:100%;
+}
+.topbar-search input::placeholder{color:var(--text-dim);}
+.btn{
+  background:var(--bg-2);border:1px solid var(--line);color:var(--text-1);
+  border-radius:8px;padding:8px 13px;font-size:12px;font-weight:500;
+  display:flex;align-items:center;gap:6px;white-space:nowrap;
+  transition:border-color .15s,color .15s;
+}
+.btn:hover{border-color:var(--cyan-dim);color:var(--cyan);}
+.btn-primary{background:rgba(79,209,197,.1);border-color:var(--cyan-dim);color:var(--cyan);}
+.btn-primary:hover{background:rgba(79,209,197,.18);}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+.clock{font-size:12px;color:var(--text-1);}
+.badge-alert{
+  position:relative;width:34px;height:34px;border-radius:9px;background:var(--bg-2);
+  border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:15px;
+}
+.badge-alert .dot{position:absolute;top:6px;right:6px;width:7px;height:7px;background:var(--red);border-radius:50%;box-shadow:0 0 0 2px var(--bg-2);}
+.avatar{
+  width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--cyan),var(--blue));
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:#062024;
+}
+
+/* ---------- Main ---------- */
+.main{grid-area:main;overflow-y:auto;padding:20px 22px 60px;}
+.loc-row{
+  display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;
+}
+.loc-pill{
+  display:flex;align-items:center;gap:8px;
+  background:var(--panel);border:1px solid var(--line);border-radius:99px;
+  padding:7px 14px;font-size:12px;color:var(--text-1);
+}
+.loc-pill b{color:var(--text-0);font-weight:600;}
+.loc-pill .pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(91,214,138,.6);animation:pulse 2s infinite;}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(91,214,138,.5);}70%{box-shadow:0 0 0 7px rgba(91,214,138,0);}100%{box-shadow:0 0 0 0 rgba(91,214,138,0);}}
+.updated{font-size:11px;color:var(--text-dim);margin-left:auto;display:flex;align-items:center;gap:10px;}
+
+/* ---------- Map card ---------- */
+.map-card{
+  position:relative;
+  border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;
+  background:var(--panel);margin-bottom:18px;
+}
+#map{height:420px;width:100%;}
+.map-loading{
+  position:absolute;inset:0;z-index:600;
+  background:var(--panel);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;
+  color:var(--text-1);font-size:13px;
+}
+.map-loading.hidden{display:none;}
+.map-spinner{
+  width:30px;height:30px;border-radius:50%;
+  border:3px solid var(--line);border-top-color:var(--cyan);
+  animation:spin .8s linear infinite;
+}
+.map-notice{
+  position:absolute;bottom:14px;left:50%;transform:translateX(-50%);z-index:600;
+  background:rgba(7,11,16,.88);backdrop-filter:blur(6px);
+  border:1px solid var(--line);border-radius:9px;padding:8px 16px;
+  font-size:11.5px;color:var(--text-1);white-space:nowrap;
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.map-notice.show{opacity:1;}
+.map-overlay-title{
+  position:absolute;top:14px;left:14px;z-index:500;
+  background:rgba(7,11,16,.72);backdrop-filter:blur(6px);
+  border:1px solid var(--line);border-radius:9px;padding:8px 12px;
+  font-size:11px;color:var(--text-1);display:flex;align-items:center;gap:8px;
+}
+.map-layers{
+  position:absolute;top:14px;right:14px;z-index:500;
+  display:flex;gap:6px;flex-wrap:wrap;max-width:60%;justify-content:flex-end;
+}
+.layer-chip{
+  background:rgba(7,11,16,.72);backdrop-filter:blur(6px);
+  border:1px solid var(--line);border-radius:99px;
+  padding:6px 11px;font-size:10.5px;color:var(--text-1);
+  display:flex;align-items:center;gap:6px;
+}
+.layer-chip.on{border-color:currentColor;}
+.layer-chip .swatch{width:8px;height:8px;border-radius:50%;}
+.scan-ring{
+  position:absolute;bottom:14px;right:14px;z-index:500;
+  width:38px;height:38px;border-radius:50%;
+  border:2px solid rgba(79,209,197,.25);
+  display:flex;align-items:center;justify-content:center;
+}
+.scan-ring::before{
+  content:'';position:absolute;inset:-2px;border-radius:50%;
+  border:2px solid transparent;border-top-color:var(--cyan);
+  animation:spin 2.4s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.scan-ring span{font-size:9px;color:var(--cyan);}
+
+/* ---------- Module strip ---------- */
+.strip{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:18px;}
+@media(max-width:1100px){.strip{grid-template-columns:repeat(4,1fr);}}
+@media(max-width:680px){.strip{grid-template-columns:repeat(2,1fr);}}
+.mcard{
+  background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  padding:13px;cursor:pointer;transition:transform .15s,border-color .15s;
+  position:relative;overflow:hidden;
+}
+.mcard:hover{transform:translateY(-2px);border-color:var(--line-soft);}
+.mcard.active{border-color:currentColor;background:rgba(255,255,255,.02);}
+.mcard-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.mcard-icon{font-size:17px;}
+.status-dot{width:7px;height:7px;border-radius:50%;}
+.mcard-label{font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.6px;margin-bottom:3px;}
+.mcard-value{font-size:19px;font-weight:700;font-family:'IBM Plex Mono',monospace;}
+.mcard-sub{font-size:10.5px;color:var(--text-1);margin-top:2px;}
+
+/* ---------- Detail panel ---------- */
+.detail{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:20px;margin-bottom:18px;
+}
+.detail-head{display:flex;align-items:center;gap:12px;margin-bottom:4px;flex-wrap:wrap;}
+.detail-title{font-size:17px;font-weight:700;display:flex;align-items:center;gap:9px;}
+.source-tag{
+  margin-left:auto;font-size:10.5px;color:var(--text-dim);
+  border:1px solid var(--line);border-radius:99px;padding:4px 10px;
+  display:flex;align-items:center;gap:6px;
+}
+.source-tag.demo{color:var(--amber);border-color:rgba(240,180,41,.3);}
+.detail-desc{font-size:12.5px;color:var(--text-1);margin:6px 0 18px;max-width:640px;}
+.detail-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px;}
+.stat{background:var(--bg-2);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;}
+.stat-label{font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.stat-value{font-family:'IBM Plex Mono',monospace;font-size:18px;font-weight:600;}
+.chart-wrap{height:220px;position:relative;}
+.status-banner{
+  display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:9px;
+  font-size:12.5px;margin-bottom:16px;border:1px solid;
+}
+
+/* ---------- Alerts ---------- */
+.alerts{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px 20px;}
+.alerts-head{display:flex;align-items:center;margin-bottom:12px;}
+.alerts-head h3{font-size:13px;margin:0;letter-spacing:.4px;text-transform:uppercase;color:var(--text-1);}
+.alert-row{
+  display:flex;align-items:flex-start;gap:11px;padding:10px 0;border-top:1px solid var(--line-soft);font-size:12.5px;
+}
+.alert-row:first-of-type{border-top:none;}
+.alert-icon{font-size:15px;}
+.alert-time{margin-left:auto;color:var(--text-dim);font-size:11px;white-space:nowrap;}
+
+/* ---------- Overview grid ---------- */
+.overview-hint{font-size:12px;color:var(--text-dim);margin:0 0 16px;}
+
+/* ---------- Scrollbar ---------- */
+::-webkit-scrollbar{width:9px;height:9px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:9px;}
+
+@media(max-width:720px){
+  .app{grid-template-columns:60px 1fr;}
+  .brand-sub{display:none;}
+  .topbar-search{display:none;}
+}
+
+/* ---------- Auth screen ---------- */
+.auth-screen{
+  position:relative;z-index:2;min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  padding:24px;
+}
+.auth-card{
+  width:100%;max-width:380px;
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:30px 28px 26px;
+}
+.auth-brand{text-align:center;margin-bottom:22px;}
+.auth-brand .brand-main{font-size:17px;}
+.auth-brand .brand-sub{font-size:10.5px;margin-top:3px;}
+.auth-tagline{text-align:center;font-size:11px;color:var(--text-dim);margin:-14px 0 22px;font-style:italic;}
+.auth-tabs{display:flex;background:var(--bg-2);border:1px solid var(--line);border-radius:9px;padding:3px;margin-bottom:20px;}
+.auth-tab{flex:1;text-align:center;padding:8px 0;font-size:12.5px;font-weight:600;border-radius:7px;color:var(--text-dim);}
+.auth-tab.active{background:rgba(79,209,197,.12);color:var(--cyan);}
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:10.5px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.field input{
+  width:100%;background:var(--bg-2);border:1px solid var(--line);border-radius:8px;
+  padding:10px 12px;color:var(--text-0);font-size:13px;outline:none;
+}
+.field input:focus{border-color:var(--cyan-dim);}
+.password-wrap{position:relative;}
+.password-wrap input{padding-right:40px;}
+.pw-toggle{
+  position:absolute;top:50%;right:4px;transform:translateY(-50%);
+  background:transparent;border:none;font-size:14px;padding:6px 8px;line-height:1;
+  color:var(--text-dim);opacity:.75;
+}
+.pw-toggle:hover{opacity:1;color:var(--text-1);}
+.field-error{font-size:11px;color:var(--red);margin-top:5px;display:none;}
+.auth-submit{
+  width:100%;background:var(--cyan);color:#062024;border:none;border-radius:8px;
+  padding:11px 0;font-size:13px;font-weight:700;margin-top:6px;
+}
+.auth-submit:hover{background:#63e0d3;}
+.auth-note{font-size:10.5px;color:var(--text-dim);text-align:center;margin-top:14px;line-height:1.5;}
+.auth-demo-fill{font-size:11px;color:var(--cyan);text-align:center;margin-top:12px;text-decoration:underline;cursor:pointer;}
+
+/* ---------- Profile modal ---------- */
+.modal-backdrop{
+  position:fixed;inset:0;z-index:900;background:rgba(4,7,10,.6);backdrop-filter:blur(3px);
+  display:none;align-items:flex-start;justify-content:flex-end;padding:70px 22px;
+}
+.modal-backdrop.open{display:flex;}
+.profile-panel{
+  width:100%;max-width:320px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);padding:20px;
+  animation:slideIn .15s ease-out;
+}
+@keyframes slideIn{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:translateY(0);}}
+.profile-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid var(--line-soft);}
+.profile-avatar{width:44px;height:44px;border-radius:11px;background:linear-gradient(135deg,var(--cyan),var(--blue));display:flex;align-items:center;justify-content:center;font-weight:700;color:#062024;font-size:15px;}
+.profile-name{font-size:14px;font-weight:700;}
+.profile-email{font-size:11px;color:var(--text-dim);}
+.profile-field{margin-bottom:11px;}
+.profile-field label{display:block;font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
+.profile-field input{width:100%;background:var(--bg-2);border:1px solid var(--line);border-radius:7px;padding:8px 10px;color:var(--text-0);font-size:12.5px;outline:none;}
+.profile-field input:disabled{color:var(--text-1);}
+.profile-actions{display:flex;gap:8px;margin-top:14px;}
+.profile-actions .btn{flex:1;justify-content:center;}
+.profile-meta{font-size:10.5px;color:var(--text-dim);margin-top:14px;padding-top:14px;border-top:1px solid var(--line-soft);}
+.logout-btn{width:100%;margin-top:14px;justify-content:center;color:var(--red);border-color:rgba(255,107,107,.25);}
+.logout-btn:hover{background:rgba(255,107,107,.1);color:var(--red);border-color:var(--red);}
+.avatar-btn{border:none;padding:0;font:inherit;color:inherit;}
+
+/* ---------- Search suggestions ---------- */
+.search-wrap{position:relative;flex:1;max-width:420px;}
+.suggestions{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:600;
+  background:var(--panel);border:1px solid var(--line);border-radius:9px;overflow:hidden;
+  display:none;box-shadow:0 10px 30px rgba(0,0,0,.4);
+}
+.suggestions.open{display:block;}
+.suggestion-row{padding:9px 13px;font-size:12.5px;color:var(--text-1);display:flex;align-items:center;gap:8px;}
+.suggestion-row:hover{background:var(--bg-2);color:var(--text-0);}
+.suggestion-row b{color:var(--text-0);}
+
+/* ---------- Basemap toggle ---------- */
+.basemap-toggle{display:flex;gap:6px;}
+.basemap-toggle .layer-chip{cursor:pointer;}
+
+/* =========================================================
+   FUTURISTIC COMMAND-CENTER THEME — DEBANJAN'S CREATION
+   ========================================================= */
+:root{
+  --bg-0:#020611;
+  --bg-1:#061127;
+  --bg-2:#081936;
+  --panel:#071735;
+  --panel-2:#0a1d40;
+  --line:rgba(76,154,255,.22);
+  --line-soft:rgba(76,154,255,.11);
+  --text-0:#eef7ff;
+  --text-1:#a9c5e8;
+  --text-2:#6e8db5;
+  --text-dim:#6883a8;
+  --cyan:#25d9ff;
+  --cyan-dim:#12658a;
+  --blue:#3f7cff;
+  --violet:#a66cff;
+  --green:#25e6a2;
+  --amber:#ffc247;
+  --red:#ff557d;
+  --pink:#ff68d5;
+  --radius:16px;
+  --radius-sm:10px;
+}
+
+html,body{
+  background:
+    radial-gradient(circle at 72% 10%,rgba(30,90,255,.12),transparent 30%),
+    radial-gradient(circle at 20% 80%,rgba(0,220,255,.06),transparent 32%),
+    #020611;
+}
+body::before{
+  content:"";
+  position:fixed; inset:0; pointer-events:none; z-index:0;
+  background-image:
+    linear-gradient(rgba(53,126,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(53,126,255,.025) 1px,transparent 1px);
+  background-size:42px 42px;
+  mask-image:linear-gradient(to bottom,rgba(0,0,0,.75),transparent 95%);
+}
+.watermark span{color:rgba(37,217,255,.025);}
+
+.app{
+  grid-template-columns:82px 1fr;
+  grid-template-rows:78px 1fr;
+  background:transparent;
+}
+.app.expanded{grid-template-columns:230px 1fr;}
+
+.sidebar{
+  background:linear-gradient(180deg,rgba(4,17,40,.96),rgba(2,8,22,.98));
+  border-right:1px solid rgba(45,133,255,.22);
+  box-shadow:12px 0 40px rgba(0,0,0,.28);
+  padding:18px 0;
+}
+.sidebar-toggle{
+  width:42px;height:42px;border-radius:12px;
+  background:linear-gradient(145deg,#0b2350,#06122b);
+  border:1px solid rgba(37,217,255,.25);
+  color:var(--cyan);
+  box-shadow:0 0 20px rgba(37,217,255,.08);
+}
+.nav-item{
+  margin:4px 9px;padding:12px 0;
+  border-radius:12px;
+  color:#8eabd0;
+  transition:.2s ease;
+}
+.app.expanded .nav-item{padding:12px 15px;}
+.nav-item:hover{
+  background:rgba(43,116,255,.10);
+  color:#fff;
+  border-color:rgba(62,139,255,.18);
+  transform:translateX(2px);
+}
+.nav-item.active{
+  background:linear-gradient(90deg,rgba(24,113,255,.28),rgba(37,217,255,.07));
+  color:#fff;
+  border-color:rgba(37,217,255,.35);
+  box-shadow:0 0 22px rgba(30,129,255,.12),inset 3px 0 0 var(--cyan);
+}
+.nav-icon{font-size:18px;filter:drop-shadow(0 0 7px rgba(37,217,255,.2));}
+
+.topbar{
+  padding:0 22px;
+  background:rgba(3,12,30,.90);
+  border-bottom:1px solid rgba(48,139,255,.24);
+  box-shadow:0 8px 30px rgba(0,0,0,.2);
+  backdrop-filter:blur(18px);
+}
+.brand-main{
+  font-size:18px;
+  letter-spacing:.8px;
+  text-shadow:0 0 18px rgba(37,217,255,.18);
+}
+.brand-sub{color:#6fa4d7;letter-spacing:1.5px;}
+.topbar-search{
+  max-width:none;
+  background:rgba(7,24,53,.8);
+  border:1px solid rgba(57,133,255,.23);
+  border-radius:11px;
+  box-shadow:inset 0 0 18px rgba(25,91,190,.08);
+}
+.topbar-search:focus-within{border-color:rgba(37,217,255,.6);box-shadow:0 0 18px rgba(37,217,255,.09);}
+.btn{
+  background:rgba(8,24,52,.85);
+  border:1px solid rgba(72,139,255,.22);
+  border-radius:10px;
+}
+.btn:hover{border-color:var(--cyan);color:#fff;box-shadow:0 0 15px rgba(37,217,255,.10);}
+.btn-primary{
+  background:linear-gradient(135deg,rgba(37,217,255,.18),rgba(57,104,255,.12));
+  border-color:rgba(37,217,255,.45);
+  color:#6eeaff;
+}
+.clock{color:#b9d9ff;}
+.badge-alert{
+  background:rgba(8,25,55,.9);
+  border-color:rgba(72,139,255,.22);
+}
+.avatar{
+  background:linear-gradient(135deg,#25d9ff,#4569ff);
+  color:#03112a;
+  box-shadow:0 0 20px rgba(37,217,255,.16);
+}
+
+.main{
+  padding:20px 22px 50px;
+  background:transparent;
+}
+.loc-row{margin-bottom:12px;}
+.loc-pill{
+  background:rgba(6,22,48,.82);
+  border-color:rgba(57,132,255,.20);
+  box-shadow:0 8px 25px rgba(0,0,0,.12);
+}
+.loc-pill b{color:#f2f8ff;}
+.updated{color:#6f94bd;}
+
+.map-card,.detail,.alerts{
+  background:linear-gradient(145deg,rgba(7,24,53,.94),rgba(4,15,34,.96));
+  border-color:rgba(57,133,255,.24);
+  box-shadow:0 16px 40px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.025);
+}
+.map-card{
+  border-radius:18px;
+  margin-bottom:16px;
+}
+#map{height:390px;}
+.map-overlay-title{
+  background:rgba(3,12,29,.78);
+  border-color:rgba(37,217,255,.25);
+  color:#d9f7ff;
+  box-shadow:0 0 20px rgba(37,217,255,.07);
+}
+.layer-chip{
+  background:rgba(3,12,29,.80);
+  border-color:rgba(65,139,255,.24);
+}
+.scan-ring{border-color:rgba(37,217,255,.22);}
+.scan-ring::before{border-top-color:var(--cyan);}
+
+.strip{
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  gap:11px;
+}
+.mcard{
+  background:linear-gradient(145deg,rgba(9,30,65,.95),rgba(5,17,39,.96));
+  border-color:rgba(62,137,255,.20);
+  border-radius:14px;
+  min-height:118px;
+  box-shadow:0 8px 24px rgba(0,0,0,.16);
+}
+.mcard:hover{
+  transform:translateY(-3px);
+  border-color:rgba(37,217,255,.48);
+  box-shadow:0 10px 30px rgba(0,111,255,.14);
+}
+.mcard.active{
+  border-color:currentColor;
+  box-shadow:0 0 24px rgba(37,217,255,.10);
+}
+.mcard-label{color:#7295bf;}
+.mcard-value{font-size:21px;}
+.mcard-sub{color:#94b3d9;}
+
+.detail{padding:20px;border-radius:16px;}
+.stat{
+  background:linear-gradient(145deg,rgba(10,32,69,.78),rgba(5,19,42,.9));
+  border-color:rgba(64,137,255,.14);
+  border-radius:12px;
+}
+.stat-label{color:#6f94bd;}
+.chart-wrap{height:250px;}
+
+.status-banner{
+  background:rgba(11,34,70,.45)!important;
+  backdrop-filter:blur(6px);
+}
+.alerts{
+  padding:18px 20px;
+  border-radius:16px;
+}
+.alert-row{
+  border-top-color:rgba(67,132,232,.12);
+  padding:12px 0;
+}
+.alert-row:hover{background:rgba(37,109,255,.05);}
+
+.auth-screen{
+  background:
+    radial-gradient(circle at 50% 35%,rgba(40,91,255,.12),transparent 35%),
+    radial-gradient(circle at 20% 80%,rgba(0,221,255,.07),transparent 30%);
+}
+.auth-card{
+  background:rgba(5,18,40,.88);
+  border-color:rgba(51,139,255,.28);
+  box-shadow:0 30px 80px rgba(0,0,0,.45),0 0 50px rgba(0,114,255,.08);
+  backdrop-filter:blur(20px);
+}
+.auth-submit{
+  background:linear-gradient(90deg,#25d9ff,#4c72ff);
+  color:#021028;
+  box-shadow:0 8px 24px rgba(37,139,255,.20);
+}
+
+.suggestions{
+  background:#06152f;
+  border-color:rgba(57,133,255,.28);
+}
+
+/* ---------- Futuristic overview command center ---------- */
+.command-header{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:18px;margin:2px 0 16px;
+}
+.command-title{
+  font-size:22px;font-weight:700;letter-spacing:.3px;
+  color:#f1f8ff;text-shadow:0 0 20px rgba(37,217,255,.12);
+}
+.command-subtitle{font-size:11px;color:#6e93bd;margin-top:4px;}
+.live-status{
+  display:flex;align-items:center;gap:8px;font-size:10px;color:#6fe8bd;
+  padding:7px 11px;border:1px solid rgba(37,230,162,.25);
+  border-radius:999px;background:rgba(37,230,162,.06);
+}
+.live-status i{width:7px;height:7px;border-radius:50%;background:#25e6a2;box-shadow:0 0 12px #25e6a2;animation:pulse 1.8s infinite;}
+
+.kpi-grid{
+  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:12px;margin-bottom:14px;
+}
+.kpi-card{
+  position:relative;overflow:hidden;min-height:122px;
+  padding:16px;border-radius:15px;
+  background:linear-gradient(145deg,rgba(9,30,66,.96),rgba(4,16,38,.96));
+  border:1px solid rgba(65,139,255,.22);
+  box-shadow:0 10px 30px rgba(0,0,0,.20);
+}
+.kpi-card::after{
+  content:"";position:absolute;width:100px;height:100px;right:-35px;bottom:-45px;
+  border-radius:50%;background:var(--glow,#25d9ff);opacity:.09;filter:blur(12px);
+}
+.kpi-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.kpi-icon{
+  width:35px;height:35px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  background:rgba(37,217,255,.10);border:1px solid rgba(37,217,255,.18);
+  font-size:17px;
+}
+.kpi-label{font-size:10px;text-transform:uppercase;letter-spacing:.8px;color:#7899c0;}
+.kpi-value{font-family:'IBM Plex Mono',monospace;font-size:23px;font-weight:600;margin-top:9px;}
+.kpi-foot{font-size:10px;color:#7fa2c9;margin-top:5px;}
+.kpi-trend{color:#25e6a2;font-size:10px;font-weight:600;}
+
+.command-grid{
+  display:grid;grid-template-columns:minmax(0,2.05fr) minmax(300px,.95fr);
+  gap:14px;margin-bottom:14px;
+}
+.command-panel{
+  background:linear-gradient(145deg,rgba(7,25,56,.96),rgba(4,16,37,.98));
+  border:1px solid rgba(64,137,255,.22);
+  border-radius:16px;padding:15px;
+  box-shadow:0 12px 32px rgba(0,0,0,.20);
+}
+.panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:11px;}
+.panel-title{font-size:13px;font-weight:700;color:#e7f4ff;display:flex;align-items:center;gap:8px;}
+.panel-meta{font-size:9px;color:#6387b2;text-transform:uppercase;letter-spacing:.7px;}
+.env-list{display:grid;gap:2px;}
+.env-row{
+  display:grid;grid-template-columns:28px 1fr auto;align-items:center;gap:8px;
+  padding:10px 0;border-bottom:1px solid rgba(65,132,229,.10);
+}
+.env-row:last-child{border-bottom:0;}
+.env-icon{font-size:16px;}
+.env-name{font-size:11px;color:#8ba9cf;}
+.env-value{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#eef7ff;}
+.env-bar{height:4px;border-radius:9px;background:#0b2347;margin-top:5px;overflow:hidden;}
+.env-bar span{display:block;height:100%;border-radius:9px;background:linear-gradient(90deg,#25d9ff,#25e6a2);box-shadow:0 0 10px rgba(37,217,255,.25);}
+
+.traffic-ring{
+  width:138px;height:138px;border-radius:50%;margin:8px auto 14px;
+  display:flex;align-items:center;justify-content:center;
+  background:conic-gradient(#25e6a2 0 68%,#ffc247 68% 90%,#ff557d 90% 100%);
+  box-shadow:0 0 35px rgba(37,230,162,.10);
+  position:relative;
+}
+.traffic-ring::before{
+  content:"";position:absolute;inset:13px;border-radius:50%;background:#061630;
+  border:1px solid rgba(79,151,255,.16);
+}
+.traffic-ring > div{position:relative;text-align:center;}
+.traffic-ring strong{display:block;font-family:'IBM Plex Mono';font-size:25px;}
+.traffic-ring span{font-size:9px;color:#25e6a2;text-transform:uppercase;letter-spacing:.7px;}
+.legend-list{display:grid;gap:7px;}
+.legend-row{display:flex;align-items:center;gap:7px;font-size:10px;color:#7d9fc6;}
+.legend-dot{width:8px;height:8px;border-radius:50%;}
+
+.chart-grid{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;margin-bottom:14px;
+}
+.mini-chart{
+  min-height:220px;
+  background:linear-gradient(145deg,rgba(7,25,56,.96),rgba(4,16,37,.98));
+  border:1px solid rgba(64,137,255,.20);
+  border-radius:15px;padding:13px;
+  box-shadow:0 10px 28px rgba(0,0,0,.16);
+}
+.mini-chart .chart-box{height:155px;position:relative;margin-top:8px;}
+.mini-chart canvas{width:100%!important;height:100%!important;}
+
+.alert-command-grid{
+  display:grid;grid-template-columns:minmax(0,1.6fr) minmax(260px,.8fr);
+  gap:14px;margin-bottom:14px;
+}
+.alert-command{
+  background:linear-gradient(145deg,rgba(7,25,56,.96),rgba(4,16,37,.98));
+  border:1px solid rgba(64,137,255,.20);border-radius:15px;padding:14px;
+}
+.alert-mini{
+  display:flex;align-items:center;gap:10px;padding:9px 0;
+  border-top:1px solid rgba(65,132,229,.10);font-size:11px;color:#aac3df;
+}
+.alert-mini:first-child{border-top:0;}
+.alert-mini-icon{width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;background:rgba(255,85,125,.10);}
+.system-health{
+  display:grid;grid-template-columns:1fr 1fr;gap:9px;
+}
+.health-card{
+  padding:12px;border-radius:11px;background:rgba(8,30,64,.70);
+  border:1px solid rgba(61,136,255,.15);
+}
+.health-label{font-size:9px;color:#698db6;text-transform:uppercase;letter-spacing:.6px;}
+.health-value{font-family:'IBM Plex Mono';font-size:15px;margin-top:5px;color:#e9f5ff;}
+.health-ok{color:#25e6a2!important;}
+
+@media(max-width:1200px){
+  .kpi-grid{grid-template-columns:repeat(3,1fr);}
+  .chart-grid{grid-template-columns:repeat(2,1fr);}
+}
+@media(max-width:900px){
+  .command-grid,.alert-command-grid{grid-template-columns:1fr;}
+  .kpi-grid{grid-template-columns:repeat(2,1fr);}
+  .strip{grid-template-columns:repeat(3,1fr);}
+}
+@media(max-width:680px){
+  .kpi-grid,.chart-grid{grid-template-columns:1fr;}
+  .strip{grid-template-columns:repeat(2,1fr);}
+  .command-header{align-items:flex-start;flex-direction:column;}
+}
+
+</style>
+</head>
+<body>
+
+<div class="watermark"><span>DEBANJAN'S CREATION</span></div>
+
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <div class="brand-main">DEBANJAN'S CREATION</div>
+      <div class="brand-sub">Smart City Live Intelligence</div>
+    </div>
+    <div class="auth-tagline">"Understand Your City. Predict Tomorrow."</div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" data-tab="login" id="tabLogin">Login</div>
+      <div class="auth-tab" data-tab="register" id="tabRegister">Create Account</div>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <form id="loginForm">
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="loginEmail" placeholder="you@example.com" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="password-wrap">
+          <input type="password" id="loginPassword" placeholder="••••••••" required />
+          <button type="button" class="pw-toggle" data-target="loginPassword">👁️</button>
+        </div>
+        <div class="field-error" id="loginError"></div>
+      </div>
+      <button type="submit" class="auth-submit">Login</button>
+      <div class="auth-demo-fill" id="fillDemo">Use demo account</div>
+    </form>
+
+    <!-- REGISTER FORM -->
+    <form id="registerForm" style="display:none;">
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="regName" placeholder="Your name" required />
+      </div>
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="regEmail" placeholder="you@example.com" required />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="password-wrap">
+          <input type="password" id="regPassword" placeholder="At least 6 characters" required />
+          <button type="button" class="pw-toggle" data-target="regPassword">👁️</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Confirm Password</label>
+        <div class="password-wrap">
+          <input type="password" id="regConfirm" placeholder="Re-enter password" required />
+          <button type="button" class="pw-toggle" data-target="regConfirm">👁️</button>
+        </div>
+        <div class="field-error" id="regError"></div>
+      </div>
+      <button type="submit" class="auth-submit">Create Account</button>
+    </form>
+
+    <div class="auth-note" id="backendStatus">Checking backend connection…</div>
+    <div class="auth-note">Without the backend running, this still works in demo mode — accounts and searches live in this browser tab only. See backend-fastapi/README.md to enable real accounts.</div>
+  </div>
+</div>
+
+<div class="app" id="app" style="display:none;">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-toggle" id="sidebarToggle">☰</div>
+    <div class="nav-item active" data-module="overview"><span class="nav-icon">🏠</span><span class="nav-label">Dashboard</span></div>
+    <div class="nav-item" data-module="traffic"><span class="nav-icon">🚗</span><span class="nav-label">Traffic</span></div>
+    <div class="nav-item" data-module="air"><span class="nav-icon">🌫️</span><span class="nav-label">Air Quality</span></div>
+    <div class="nav-item" data-module="weather"><span class="nav-icon">🌧️</span><span class="nav-label">Weather</span></div>
+    <div class="nav-item" data-module="water"><span class="nav-icon">💧</span><span class="nav-label">Water Level</span></div>
+    <div class="nav-item" data-module="energy"><span class="nav-icon">⚡</span><span class="nav-label">Energy</span></div>
+    <div class="nav-item" data-module="incidents"><span class="nav-icon">🚨</span><span class="nav-label">Incidents</span></div>
+    <div class="nav-item" data-module="waste"><span class="nav-icon">🗑️</span><span class="nav-label">Waste</span></div>
+    <div class="nav-spacer"></div>
+    <div class="sidebar-foot mono">v0.1 · LIVE-CITY</div>
+  </div>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-main">DEBANJAN'S CREATION</div>
+      <div class="brand-sub">Smart City Live Intelligence</div>
+    </div>
+    <div class="search-wrap">
+      <div class="topbar-search">
+        <span style="opacity:.6">🔍</span>
+        <input id="searchInput" autocomplete="off" placeholder="Search any place — country, city, village, road, address…" />
+      </div>
+      <div class="suggestions" id="suggestions"></div>
+    </div>
+    <button class="btn" id="searchBtn">Search</button>
+    <button class="btn btn-primary" id="geoBtn">📍 Use current location</button>
+    <div class="topbar-right">
+      <span class="clock mono" id="clock">--:--:--</span>
+      <div class="badge-alert">🔔<span class="dot"></span></div>
+      <button class="avatar avatar-btn" id="avatarBtn">DC</button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <div class="loc-row">
+      <div class="loc-pill"><span class="pulse"></span>📍 Monitoring: <b id="locName">No location selected</b></div>
+      <div class="loc-pill" id="levelPill" style="display:none;">📶 <b id="levelName">—</b></div>
+      <div class="loc-pill">🛰️ OpenStreetMap Intelligence</div>
+      <div class="updated">
+        <span id="lastUpdated">Last updated: —</span>
+        <button class="btn" id="refreshBtn" style="padding:5px 10px;">⟳ Refresh</button>
+      </div>
+    </div>
+    <div id="addressLine" style="font-size:11px;color:var(--text-dim);margin:-6px 0 15px;"></div>
+
+    <div class="command-header">
+      <div>
+        <div class="command-title">Smart City Command Center</div>
+        <div class="command-subtitle">Real-time urban intelligence • predictive analytics • connected infrastructure</div>
+      </div>
+      <div class="live-status"><i></i> LIVE CITY INTELLIGENCE</div>
+    </div>
+
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="command-grid">
+      <div class="command-panel">
+        <div class="panel-head">
+          <div class="panel-title">🗺️ City Overview — Live Intelligence Map</div>
+          <div class="panel-meta">MULTI-LAYER / REAL-TIME</div>
+        </div>
+        <div class="map-card" style="margin:0;border:none;box-shadow:none;">
+          <div class="map-overlay-title">📡 Live City Map</div>
+          <div class="basemap-toggle" style="position:absolute;top:58px;left:14px;z-index:500;" id="basemapToggle"></div>
+          <div class="map-layers" id="layerChips"></div>
+          <div id="map"></div>
+          <div class="scan-ring"><span>●</span></div>
+          <div class="map-loading" id="mapLoading"><div class="map-spinner"></div>Loading Live Map…</div>
+          <div class="map-notice" id="mapNotice"></div>
+        </div>
+      </div>
+
+      <div class="command-panel">
+        <div class="panel-head">
+          <div class="panel-title">🌿 Real-time Environment</div>
+          <div class="panel-meta">SENSORS ONLINE</div>
+        </div>
+        <div class="env-list" id="environmentPanel">
+          <div class="env-row"><div class="env-icon">🌡️</div><div><div class="env-name">Temperature</div><div class="env-bar"><span style="width:60%"></span></div></div><div class="env-value">--°C</div></div>
+          <div class="env-row"><div class="env-icon">💧</div><div><div class="env-name">Humidity</div><div class="env-bar"><span style="width:55%"></span></div></div><div class="env-value">--%</div></div>
+          <div class="env-row"><div class="env-icon">🍃</div><div><div class="env-name">Air Quality</div><div class="env-bar"><span style="width:35%"></span></div></div><div class="env-value">--</div></div>
+          <div class="env-row"><div class="env-icon">☁️</div><div><div class="env-name">PM2.5</div><div class="env-bar"><span style="width:30%"></span></div></div><div class="env-value">-- µg/m³</div></div>
+          <div class="env-row"><div class="env-icon">🌬️</div><div><div class="env-name">PM10</div><div class="env-bar"><span style="width:40%"></span></div></div><div class="env-value">-- µg/m³</div></div>
+          <div class="env-row"><div class="env-icon">🔊</div><div><div class="env-name">Noise Level</div><div class="env-bar"><span style="width:48%"></span></div></div><div class="env-value">-- dB</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="strip" id="moduleStrip"></div>
+
+    <div class="chart-grid" id="overviewCharts">
+      <div class="mini-chart">
+        <div class="panel-head"><div class="panel-title">👥 Population Trend</div><div class="panel-meta">1 YEAR</div></div>
+        <div class="chart-box"><canvas id="populationChart"></canvas></div>
+      </div>
+      <div class="mini-chart">
+        <div class="panel-head"><div class="panel-title">⚡ Energy Consumption</div><div class="panel-meta">7 DAYS</div></div>
+        <div class="chart-box"><canvas id="energyOverviewChart"></canvas></div>
+      </div>
+      <div class="mini-chart">
+        <div class="panel-head"><div class="panel-title">🍃 Air Quality</div><div class="panel-meta">7 DAYS</div></div>
+        <div class="chart-box"><canvas id="aqiOverviewChart"></canvas></div>
+      </div>
+      <div class="mini-chart">
+        <div class="panel-head"><div class="panel-title">🎧 Citizen Complaints</div><div class="panel-meta">7 DAYS</div></div>
+        <div class="chart-box"><canvas id="complaintsOverviewChart"></canvas></div>
+      </div>
+    </div>
+
+    <div class="alert-command-grid">
+      <div class="alert-command">
+        <div class="panel-head"><div class="panel-title">🚨 Recent Alerts</div><div class="panel-meta">AUTO PRIORITIZED</div></div>
+        <div id="commandAlerts"></div>
+      </div>
+      <div class="alert-command">
+        <div class="panel-head"><div class="panel-title">🛰️ System Health</div><div class="panel-meta">ALL SERVICES</div></div>
+        <div class="system-health">
+          <div class="health-card"><div class="health-label">API Gateway</div><div class="health-value health-ok">● ONLINE</div></div>
+          <div class="health-card"><div class="health-label">Map Engine</div><div class="health-value health-ok">● ONLINE</div></div>
+          <div class="health-card"><div class="health-label">Data Stream</div><div class="health-value health-ok">● LIVE</div></div>
+          <div class="health-card"><div class="health-label">Sensors</div><div class="health-value health-ok">● 98.7%</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detail" id="detailPanel"></div>
+
+    <div class="alerts" style="display:none;">
+      <div class="alerts-head"><h3>Live alerts — <span id="locName2">Bhubaneswar</span></h3></div>
+      <div id="alertsList"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="profileBackdrop">
+  <div class="profile-panel">
+    <div class="profile-head">
+      <div class="profile-avatar" id="profileAvatarInitials">DC</div>
+      <div>
+        <div class="profile-name" id="profileName">—</div>
+        <div class="profile-email" id="profileEmail">—</div>
+      </div>
+    </div>
+
+    <div class="profile-field">
+      <label>Full Name</label>
+      <input id="profileNameInput" disabled />
+    </div>
+    <div class="profile-field">
+      <label>Preferred Location</label>
+      <div style="position:relative;">
+        <input id="profileLocationInput" disabled autocomplete="off" placeholder="Search any place worldwide…" />
+        <div class="suggestions" id="profileSuggestions" style="position:absolute;"></div>
+      </div>
+    </div>
+
+    <div class="profile-actions">
+      <button class="btn" id="profileEditBtn">Edit Profile</button>
+      <button class="btn btn-primary" id="profileSaveBtn" style="display:none;">Save</button>
+    </div>
+
+    <div class="profile-meta">Account created: <span id="profileCreated">—</span></div>
+
+    <button class="btn logout-btn" id="logoutBtn">🚪 Logout</button>
+  </div>
+</div>
+
+<script>
+/* ================= BACKEND CONNECTION ================= */
+// Points at the Node/Express API in /backend (see backend/README.md).
+// The dashboard pings /api/health on load; if the backend answers, real
+// accounts/profile/geocoding go through it and SQLite. If it doesn't
+// (e.g. this HTML is opened on its own with no backend running), the
+// dashboard quietly falls back to the built-in in-memory demo mode below.
+const BACKEND_URL = 'http://localhost:8000/api';
+let backendOnline = false;
+let authToken = null; // JWT from the backend, kept in memory only (never localStorage)
+
+async function pingBackend(){
+  try{
+    const controller = new AbortController();
+    const timeout = setTimeout(()=>controller.abort(), 1500);
+    const res = await fetch(`${BACKEND_URL}/health`, {signal: controller.signal});
+    clearTimeout(timeout);
+    backendOnline = res.ok;
+  }catch(e){
+    backendOnline = false;
+  }
+  updateBackendStatus();
+  return backendOnline;
+}
+function updateBackendStatus(){
+  const el = document.getElementById('backendStatus');
+  if(!el) return;
+  el.textContent = backendOnline
+    ? '🟢 Connected to backend API — accounts and locations are saved for real.'
+    : '🟡 Demo mode — backend not detected. Run the included Python API (see backend-fastapi/README.md) for real accounts.';
+  el.style.color = backendOnline ? 'var(--green)' : 'var(--amber)';
+}
+function authHeaders(){
+  return authToken ? {'Authorization': `Bearer ${authToken}`} : {};
+}
+
+/* ================= LOCATION SEARCH (live geocoding — no hardcoded place list) ================= */
+// Universal location search via OpenStreetMap's Nominatim geocoding API,
+// covering countries, states, districts, cities, villages, roads, and
+// addresses worldwide. Routed through the backend proxy (proper User-Agent,
+// caching) when it's online; falls back to calling Nominatim directly from
+// the browser when running standalone — see /config/dataSources in the
+// project spec for swapping in a licensed provider later.
+const GEOCODE_BASE = 'https://nominatim.openstreetmap.org';
+
+const LEVEL_LABELS = {
+  house:'Exact address', building:'Building', residential:'Residential area',
+  road:'Street / road', pedestrian:'Street / road',
+  neighbourhood:'Neighbourhood', suburb:'Locality / suburb', quarter:'Locality',
+  village:'Village', hamlet:'Hamlet', isolated_dwelling:'Isolated dwelling',
+  town:'Town', city:'City', municipality:'Municipality',
+  county:'District', state_district:'District', city_district:'District',
+  state:'State', region:'Region', country:'Country'
+};
+function placeLevel(item){
+  return item.addresstype || item.type || item.class || 'place';
+}
+function levelLabel(item){
+  const t = placeLevel(item);
+  return LEVEL_LABELS[t] || (t.charAt(0).toUpperCase() + t.slice(1).replace(/_/g,' '));
+}
+function isPreciseLevel(item){
+  return ['house','building'].includes(placeLevel(item));
+}
+function addressParts(addr={}){
+  return {
+    locality: addr.suburb || addr.neighbourhood || addr.quarter || addr.village || addr.hamlet || '—',
+    district: addr.county || addr.state_district || addr.city_district || '—',
+    state: addr.state || addr.region || '—',
+    country: addr.country || '—'
+  };
+}
+
+let searchAbortController = null;
+async function geocodeSearch(query){
+  if(searchAbortController) searchAbortController.abort();
+  searchAbortController = new AbortController();
+  const url = backendOnline
+    ? `${BACKEND_URL}/location/search?q=${encodeURIComponent(query)}`
+    : `${GEOCODE_BASE}/search?format=jsonv2&addressdetails=1&limit=8&q=${encodeURIComponent(query)}`;
+  const res = await fetch(url, {
+    signal: searchAbortController.signal,
+    headers: {'Accept-Language':'en', ...(backendOnline ? authHeaders() : {})}
+  });
+  if(res.status === 404) return []; // "Location not found" — a normal empty result, not an error
+  if(!res.ok) throw new Error('Geocoding service error');
+  return res.json();
+}
+async function geocodeReverse(lat, lon){
+  const url = backendOnline
+    ? `${BACKEND_URL}/location/details?lat=${lat}&lng=${lon}`
+    : `${GEOCODE_BASE}/reverse?format=jsonv2&addressdetails=1&lat=${lat}&lon=${lon}`;
+  const res = await fetch(url, {headers:{'Accept-Language':'en'}});
+  if(!res.ok) throw new Error('Geocoding service error');
+  return res.json();
+}
+
+const MODULES = {
+  traffic:   {icon:"🚗", name:"Traffic",        color:"#f0b429", source:"demo"},
+  air:       {icon:"🌫️", name:"Air Quality",    color:"#b18cf2", source:"demo"},
+  weather:   {icon:"🌧️", name:"Weather",        color:"#5aa9e6", source:"demo"},
+  water:     {icon:"💧", name:"Water Level",    color:"#38bdf8", source:"demo"},
+  energy:    {icon:"⚡", name:"Energy",         color:"#ffd54a", source:"demo"},
+  incidents: {icon:"🚨", name:"Incidents",      color:"#ff6b6b", source:"demo"},
+  waste:     {icon:"🗑️", name:"Waste",          color:"#5bd68a", source:"demo"}
+};
+
+let state = {
+  location: null, // {label, displayName, lat, lng, level, precise, locality, district, state, country}
+  activeModule: "overview",
+  activeLayers: new Set(Object.keys(MODULES)),
+  data: null,
+  map: null,
+  markersLayer: null,
+  chart: null,
+  sidebarExpanded: false
+};
+
+function setLocationFromResult(r){
+  const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
+  const parts = addressParts(r.address || {});
+  const precise = isPreciseLevel(r);
+  state.location = {
+    label: (r.name && r.name.trim()) || r.display_name.split(',')[0],
+    displayName: r.display_name,
+    lat, lng,
+    level: levelLabel(r),
+    precise,
+    locality: parts.locality, district: parts.district, state: parts.state, country: parts.country
+  };
+  const zoom = precise ? 18 : (placeLevel(r)==='road' ? 16 : (['village','hamlet','town','suburb','neighbourhood'].includes(placeLevel(r)) ? 15 : (['city','municipality'].includes(placeLevel(r)) ? 13 : (['county','state_district','city_district'].includes(placeLevel(r)) ? 10 : (placeLevel(r)==='state' ? 6 : 4)))));
+  engineSetViewClamped(lat, lng, zoom);
+  refreshData();
+}
+
+function renderEmptyState(){
+  document.getElementById('locName').textContent = 'No location selected';
+  document.getElementById('locName2').textContent = 'your location';
+  document.getElementById('levelPill').style.display = 'none';
+  document.getElementById('addressLine').textContent = '';
+  document.getElementById('lastUpdated').textContent = 'Last updated: —';
+  document.getElementById('moduleStrip').innerHTML = `<div style="grid-column:1/-1;color:var(--text-dim);font-size:12.5px;padding:6px 2px;">Search for any real-world place above — a country, city, village, road, or address — to start monitoring it.</div>`;
+  document.getElementById('detailPanel').innerHTML = `
+    <div class="detail-head"><div class="detail-title">🌍 Universal Location Search</div></div>
+    <p class="detail-desc">Type a place in the search bar — anything from a country down to a specific address — or tap "Use current location". Results come live from the OpenStreetMap Nominatim geocoding database, not a fixed city list.</p>
+  `;
+  document.getElementById('alertsList').innerHTML = `<div class="alert-row" style="color:var(--text-dim)">No location selected yet.</div>`;
+  engineClearMarkers();
+}
+
+/* ---------- seeded pseudo-random so a given city always looks consistent ---------- */
+function seedFromString(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) >>> 0; }
+  return h;
+}
+function mulberry32(a){
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function generateCityData(location){
+  const seedKey = `${location.lat.toFixed(3)}_${location.lng.toFixed(3)}_${new Date().toDateString()}`;
+  const rnd = mulberry32(seedFromString(seedKey));
+  const pick = (arr) => arr[Math.floor(rnd()*arr.length)];
+
+  const trafficLevel = pick(["LOW","MODERATE","HIGH"]);
+  const aqiVal = Math.round(30 + rnd()*220);
+  const aqiCat = aqiVal<50?"Good":aqiVal<100?"Moderate":aqiVal<180?"Poor":"Very Poor";
+  const temp = Math.round(20 + rnd()*16);
+  const waterKnown = rnd() > 0.35;
+  const waterLevel = waterKnown ? +(2 + rnd()*4).toFixed(1) : null;
+  const wasteStatus = pick(["Completed","Scheduled","Pending"]);
+
+  return {
+    generatedAt: new Date(),
+    traffic:{
+      level: trafficLevel,
+      congestion: Math.round(20+rnd()*75),
+      avgSpeed: Math.round(14+rnd()*40),
+      trend: Array.from({length:8},()=>Math.round(20+rnd()*80))
+    },
+    air:{
+      aqi: aqiVal, category: aqiCat,
+      pm25:+(8+rnd()*140).toFixed(1), pm10:+(15+rnd()*180).toFixed(1), no2:+(5+rnd()*60).toFixed(1),
+      trend: Array.from({length:8},()=>Math.round(30+rnd()*200))
+    },
+    weather:{
+      temp, feelsLike: temp + Math.round(rnd()*4-2),
+      humidity: Math.round(35+rnd()*55), wind: Math.round(4+rnd()*28),
+      rainChance: Math.round(rnd()*90),
+      condition: pick(["Clear","Partly Cloudy","Cloudy","Light Rain","Thunderstorms","Haze"])
+    },
+    water:{
+      known: waterKnown, level: waterLevel, warning: 5.5, danger: 7.0,
+      station: waterKnown ? pick(["Riverbank Station 3","North Basin Gauge","City Reservoir Sensor"]) : null,
+      trend: waterKnown ? Array.from({length:8},()=>+(2+rnd()*4).toFixed(1)) : []
+    },
+    energy:{
+      current: Math.round(400+rnd()*900), daily: Math.round(8000+rnd()*6000),
+      peak: Math.round(1200+rnd()*900),
+      predicted: Math.round(9000+rnd()*7000),
+      trend: Array.from({length:8},()=>Math.round(400+rnd()*1000))
+    },
+    incidents: Array.from({length: 1+Math.floor(rnd()*4)}, (_,i)=>({
+      type: pick(["Accident","Road Block","Fire","Emergency"]),
+      severity: pick(["Low","Medium","High"]),
+      time: `${Math.floor(rnd()*12)+1}${rnd()>0.5?"AM":"PM"}`,
+      status: pick(["Active","Under Response","Cleared"]),
+      lat: state.location.lat + (rnd()-0.5)*0.06,
+      lng: state.location.lng + (rnd()-0.5)*0.06
+    })),
+    waste:{
+      status: wasteStatus, coverage: Math.round(55+rnd()*40),
+      pendingAreas: Math.floor(rnd()*6), completedAreas: Math.floor(3+rnd()*10),
+      overflow: rnd() > 0.7
+    },
+    population: Math.round(900000 + rnd()*550000),
+    complaints: Math.round(12 + rnd()*38),
+    noise: Math.round(38 + rnd()*28)
+  };
+}
+
+function refreshData(){
+  if(!state.location) { renderEmptyState(); return; }
+  state.data = generateCityData(state.location);
+  renderAll();
+}
+
+/* ================= MAP ================= */
+// Paste a Google Maps Platform API key here (needs billing enabled in Google
+// Cloud Console) to use REAL Google Maps / Google Earth imagery, with full
+// street names, POIs, buildings, and transit — exactly like maps.google.com.
+// Leave it blank and the dashboard automatically uses a free, no-key basemap
+// set instead (OpenStreetMap "Streets" + Esri HD satellite), which already
+// shows roads, place names, and points of interest at every zoom level.
+const GOOGLE_MAPS_API_KEY = "";
+
+let mapEngine = 'leaflet'; // flips to 'google' once/if the Google Maps script loads
+let gmap = null, gInfoWindow = null;
+let gModuleMarkers = [], gSelectedMarker = null;
+
+const BASEMAPS = {
+  streets: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 20, detectRetina: true
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    attribution: 'Tiles &copy; Esri — Source: Esri, Maxar, Earthstar Geographics',
+    maxZoom: 19, detectRetina: true
+  }),
+  dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap &copy; CARTO',
+    subdomains: 'abcd', maxZoom: 19, detectRetina: true
+  })
+};
+let currentBasemap = 'satellite';
+let satelliteLabelsLayer = null;
+
+function loadGoogleMapsScript(){
+  return new Promise((resolve, reject)=>{
+    if(window.google && window.google.maps){ resolve(); return; }
+    const script = document.createElement('script');
+    // libraries=places enables the native Place Autocomplete widget on the search box
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&libraries=places&v=weekly`;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Google Maps failed to load — check the API key and billing status.'));
+    document.head.appendChild(script);
+  });
+}
+
+let mapNoticeTimeout = null;
+function showMapNotice(text, ms=4000){
+  const el = document.getElementById('mapNotice');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(mapNoticeTimeout);
+  mapNoticeTimeout = setTimeout(()=> el.classList.remove('show'), ms);
+}
+function hideMapLoading(){
+  document.getElementById('mapLoading').classList.add('hidden');
+}
+
+function initMap(){
+  if(GOOGLE_MAPS_API_KEY){
+    loadGoogleMapsScript().then(initGoogleMap).catch(err=>{
+      console.warn(err.message + ' Falling back to the free basemap.');
+      showMapNotice('Map service is temporarily unavailable — showing the free basemap instead.', 6000);
+      initLeafletMap();
+    });
+  } else {
+    initLeafletMap();
+  }
+}
+
+function initGoogleMap(){
+  mapEngine = 'google';
+  const start = state.location ? {lat: state.location.lat, lng: state.location.lng} : {lat: 22.5, lng: 80};
+  const startZoom = state.location ? 16 : 4;
+  gmap = new google.maps.Map(document.getElementById('map'), {
+    center: start, zoom: startZoom,
+    mapTypeId: google.maps.MapTypeId.HYBRID, // satellite imagery + road/place labels — the "Google Earth" look
+    mapTypeControl: true, streetViewControl: true, fullscreenControl: true,
+    zoomControl: true, gestureHandling: 'greedy'
+  });
+  gInfoWindow = new google.maps.InfoWindow();
+  document.getElementById('basemapToggle').style.display = 'none'; // Google's own layer switcher replaces ours
+  setupGoogleAutocomplete();
+  afterMapReady();
+}
+
+// Native Google Places Autocomplete on the search box, replacing our custom
+// suggestions dropdown only when the real Google engine is active.
+function setupGoogleAutocomplete(){
+  if(!(window.google && google.maps.places)) return;
+  const autocomplete = new google.maps.places.Autocomplete(searchInput, {fields:['geometry','name','formatted_address','address_components','types','place_id']});
+  autocomplete.addListener('place_changed', ()=>{
+    const place = autocomplete.getPlace();
+    if(!place.geometry){ showMapNotice('Location not found.'); return; }
+    const loc = place.geometry.location;
+    const address = {};
+    (place.address_components||[]).forEach(c=>{ if(c.types && c.types[0]) address[c.types[0]] = c.long_name; });
+    setLocationFromResult({
+      display_name: place.formatted_address || place.name,
+      name: place.name, lat: loc.lat(), lon: loc.lng(),
+      type: (place.types||['place'])[0], addresstype: (place.types||['place'])[0],
+      address, place_id: place.place_id
+    });
+    searchInput.value = '';
+  });
+}
+
+function initLeafletMap(){
+  mapEngine = 'leaflet';
+  const start = state.location ? [state.location.lat, state.location.lng] : [22.5, 80];
+  const startZoom = state.location ? 15 : 4;
+  state.map = L.map('map', {zoomControl:true, attributionControl:true})
+    .setView(start, startZoom);
+  BASEMAPS[currentBasemap].addTo(state.map);
+  applySatelliteLabels();
+  state.markersLayer = L.layerGroup().addTo(state.map);
+  renderBasemapToggle();
+  afterMapReady();
+}
+
+// Called once whichever map engine (Google Maps or Leaflet) has actually
+// finished initializing — Google's script loads asynchronously, so the
+// first render can't fire until this confirms the map exists.
+function afterMapReady(){
+  hideMapLoading();
+  if(state.location) refreshData(); else renderEmptyState();
+}
+
+// Esri's satellite tiles carry no labels on their own, so layer place/road
+// names on top whenever "satellite" is the active basemap — this is the
+// same trick Esri's and Google's own "hybrid" views use.
+function applySatelliteLabels(){
+  if(satelliteLabelsLayer){ state.map.removeLayer(satelliteLabelsLayer); satelliteLabelsLayer = null; }
+  if(currentBasemap === 'satellite'){
+    satelliteLabelsLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19, opacity: 1, detectRetina: true
+    }).addTo(state.map);
+  }
+}
+
+function setBasemap(key){
+  if(key === currentBasemap) return;
+  state.map.removeLayer(BASEMAPS[currentBasemap]);
+  currentBasemap = key;
+  BASEMAPS[currentBasemap].addTo(state.map);
+  BASEMAPS[currentBasemap].bringToBack();
+  applySatelliteLabels();
+  renderBasemapToggle();
+}
+
+function renderBasemapToggle(){
+  const wrap = document.getElementById('basemapToggle');
+  wrap.innerHTML = '';
+  [
+    {key:'streets', label:'🛣️ Streets (detailed)'},
+    {key:'satellite', label:'🛰️ HD Satellite'},
+    {key:'dark', label:'🌐 Dark map'}
+  ].forEach(o=>{
+    const chip = document.createElement('div');
+    chip.className = 'layer-chip' + (currentBasemap===o.key ? ' on' : '');
+    chip.style.color = currentBasemap===o.key ? 'var(--cyan)' : '';
+    chip.textContent = o.label;
+    chip.onclick = () => setBasemap(o.key);
+    wrap.appendChild(chip);
+  });
+}
+
+/* ---------- Engine-agnostic view/marker helpers (Leaflet or Google Maps) ---------- */
+function engineSetView(lat, lng, zoom){
+  if(mapEngine === 'google' && gmap){
+    gmap.setCenter({lat, lng});
+    gmap.setZoom(zoom);
+  } else if(state.map){
+    state.map.setView([lat, lng], zoom);
+  }
+}
+
+// Respects Google's official Maximum Zoom Imagery Service: never requests a
+// zoom level higher than what's actually available for this location, and
+// tells the user when it had to cap the zoom instead of silently failing.
+function engineSetViewClamped(lat, lng, desiredZoom){
+  if(mapEngine !== 'google' || !gmap || !window.google || !google.maps.MaxZoomService){
+    engineSetView(lat, lng, desiredZoom);
+    return;
+  }
+  new google.maps.MaxZoomService().getMaxZoomAtLatLng({lat, lng}, (result)=>{
+    let zoom = desiredZoom;
+    if(result.status === 'OK' && desiredZoom > result.zoom){
+      zoom = result.zoom;
+      showMapNotice('Maximum available satellite detail reached for this location.');
+    }
+    gmap.setCenter({lat, lng});
+    gmap.setZoom(zoom);
+  });
+}
+
+function engineClearMarkers(){
+  if(mapEngine === 'google'){
+    gModuleMarkers.forEach(m => m.setMap(null));
+    gModuleMarkers = [];
+    if(gSelectedMarker){ gSelectedMarker.setMap(null); gSelectedMarker = null; }
+  } else if(state.markersLayer){
+    state.markersLayer.clearLayers();
+  }
+}
+
+function moduleMarkerIcon(color, icon){
+  return L.divIcon({
+    className: '',
+    html: `<div style="background:${color};width:26px;height:26px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px rgba(0,0,0,.4)"><span style="transform:rotate(45deg);font-size:12px;">${icon}</span></div>`,
+    iconSize:[26,26], iconAnchor:[13,26]
+  });
+}
+
+function engineAddMarker({lat, lng, color, icon, popupHtml, selected}){
+  if(mapEngine === 'google'){
+    const marker = new google.maps.Marker({
+      position: {lat, lng}, map: gmap,
+      icon: selected
+        ? { path: google.maps.SymbolPath.CIRCLE, fillColor:'#4fd1c5', fillOpacity:1, strokeColor:'#062024', strokeWeight:2, scale:8 }
+        : { path: google.maps.SymbolPath.CIRCLE, fillColor:color, fillOpacity:1, strokeColor:'#062024', strokeWeight:1.5, scale:10 },
+      label: selected ? undefined : { text: icon, fontSize:'12px' }
+    });
+    marker.addListener('click', ()=>{ gInfoWindow.setContent(popupHtml); gInfoWindow.open(gmap, marker); });
+    if(selected) gSelectedMarker = marker; else gModuleMarkers.push(marker);
+    return marker;
+  }
+  const leafletIcon = selected
+    ? L.divIcon({className:'', html:`<div style="width:14px;height:14px;border-radius:50%;background:#4fd1c5;box-shadow:0 0 0 5px rgba(79,209,197,.25)"></div>`, iconSize:[14,14], iconAnchor:[7,7]})
+    : moduleMarkerIcon(color, icon);
+  return L.marker([lat,lng], {icon: leafletIcon}).bindPopup(popupHtml).addTo(state.markersLayer);
+}
+
+function renderMapMarkers(){
+  if((mapEngine==='leaflet' && !state.map) || !state.location) return;
+  engineClearMarkers();
+  const {lat,lng} = state.location;
+  const d = state.data;
+
+  if(state.activeLayers.has("traffic")){
+    [[0.01,0.008],[-0.015,0.005],[0.006,-0.012]].forEach((off,i)=>{
+      engineAddMarker({lat:lat+off[0], lng:lng+off[1], color:MODULES.traffic.color, icon:"🚗",
+        popupHtml:`<b>Traffic point ${i+1}</b><br>Status: ${d.traffic.level}<br><i>DEMO DATA</i>`});
+    });
+  }
+  if(state.activeLayers.has("incidents")){
+    d.incidents.forEach(inc=>{
+      engineAddMarker({lat:inc.lat, lng:inc.lng, color:MODULES.incidents.color, icon:"🚨",
+        popupHtml:`<b>${inc.type}</b><br>Severity: ${inc.severity}<br>Status: ${inc.status}<br><i>DEMO DATA</i>`});
+    });
+  }
+  if(state.activeLayers.has("water") && d.water.known){
+    engineAddMarker({lat:lat-0.02, lng:lng+0.015, color:MODULES.water.color, icon:"💧",
+      popupHtml:`<b>${d.water.station}</b><br>Level: ${d.water.level}m<br><i>DEMO DATA</i>`});
+  }
+  if(state.activeLayers.has("waste")){
+    [[0.008,0.018],[-0.006,-0.02]].forEach((off,i)=>{
+      engineAddMarker({lat:lat+off[0], lng:lng+off[1], color:MODULES.waste.color, icon:"🗑️",
+        popupHtml:`<b>Waste zone ${i+1}</b><br>Status: ${d.waste.status}<br><i>DEMO DATA</i>`});
+    });
+  }
+  engineAddMarker({
+    lat, lng, selected:true,
+    popupHtml:`<b>${state.location.label}</b><br>${state.location.displayName}<br><i>Level: ${state.location.level}${state.location.precise ? '' : ' (approximate)'}</i>`
+  });
+}
+
+function renderLayerChips(){
+  const wrap = document.getElementById('layerChips');
+  wrap.innerHTML = '';
+  ["traffic","incidents","water","waste"].forEach(key=>{
+    const m = MODULES[key];
+    const chip = document.createElement('div');
+    chip.className = 'layer-chip' + (state.activeLayers.has(key) ? ' on':'');
+    chip.style.color = state.activeLayers.has(key) ? m.color : '';
+    chip.innerHTML = `<span class="swatch" style="background:${m.color}"></span>${m.icon} ${m.name}`;
+    chip.onclick = () => {
+      state.activeLayers.has(key) ? state.activeLayers.delete(key) : state.activeLayers.add(key);
+      renderLayerChips(); renderMapMarkers();
+    };
+    wrap.appendChild(chip);
+  });
+}
+
+/* ================= MODULE STRIP ================= */
+function statusColor(level){
+  const l = (level||"").toString().toLowerCase();
+  if(["low","good","completed","cleared"].includes(l)) return "var(--green)";
+  if(["moderate","medium","scheduled"].includes(l)) return "var(--amber)";
+  return "var(--red)";
+}
+
+function stripCardConfig(){
+  const d = state.data;
+  return [
+    {key:"traffic", label:"Congestion", value:d.traffic.level, sub:`${d.traffic.avgSpeed} km/h avg`, dot:statusColor(d.traffic.level)},
+    {key:"air", label:"AQI", value:d.air.aqi, sub:d.air.category, dot:statusColor(d.air.category)},
+    {key:"weather", label:"Temp", value:`${d.weather.temp}°C`, sub:d.weather.condition, dot:"var(--blue)"},
+    {key:"water", label:"Water Level", value:d.water.known?`${d.water.level}m`:"N/A", sub:d.water.known?"Normal":"Unavailable", dot: d.water.known?statusColor(d.water.level>d.water.warning?"high":"low"):"var(--text-dim)"},
+    {key:"energy", label:"Consumption", value:`${d.energy.current}kW`, sub:`Peak ${d.energy.peak}kW`, dot:"var(--yellow)"},
+    {key:"incidents", label:"Active", value:d.incidents.length, sub:"reported nearby", dot: d.incidents.length>2?"var(--red)":"var(--amber)"},
+    {key:"waste", label:"Collection", value:d.waste.status, sub:`${d.waste.coverage}% coverage`, dot:statusColor(d.waste.status)}
+  ];
+}
+
+function renderStrip(){
+  const strip = document.getElementById('moduleStrip');
+  strip.innerHTML = '';
+  stripCardConfig().forEach(c=>{
+    const m = MODULES[c.key];
+    const card = document.createElement('div');
+    card.className = 'mcard' + (state.activeModule===c.key ? ' active':'');
+    card.style.color = m.color;
+    card.innerHTML = `
+      <div class="mcard-top">
+        <span class="mcard-icon">${m.icon}</span>
+        <span class="status-dot" style="background:${c.dot}"></span>
+      </div>
+      <div class="mcard-label">${c.label}</div>
+      <div class="mcard-value" style="color:var(--text-0)">${c.value}</div>
+      <div class="mcard-sub">${c.sub}</div>
+    `;
+    card.onclick = () => { state.activeModule = c.key; renderAll(); };
+    strip.appendChild(card);
+  });
+}
+
+/* ================= DETAIL PANEL ================= */
+function sourceTag(module){
+  const src = MODULES[module]?.source;
+  if(src === "demo") return `<span class="source-tag demo">● DEMO DATASET</span>`;
+  return `<span class="source-tag">● ${src}</span>`;
+}
+
+function destroyChart(){ if(state.chart){ state.chart.destroy(); state.chart = null; } }
+
+function lineChart(canvasId, labels, values, color, label){
+  destroyChart();
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  state.chart = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets:[{ label, data: values, borderColor: color, backgroundColor: color+'22',
+      tension:.35, fill:true, pointRadius:3, pointBackgroundColor: color }]},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{display:false} },
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#6d8395', font:{size:10}} },
+        y:{ grid:{color:'rgba(255,255,255,.04)'}, ticks:{color:'#6d8395', font:{size:10}} }
+      }
+    }
+  });
+}
+
+function renderOverview(){
+  const d = state.data;
+  return `
+    <div class="detail-head"><div class="detail-title">🏠 City Overview — ${state.location.label}</div></div>
+    <p class="overview-hint">Select a module from the sidebar or the cards above to see full detail for just that module.</p>
+    <div class="detail-grid">
+      <div class="stat"><div class="stat-label">Traffic</div><div class="stat-value">${d.traffic.level}</div></div>
+      <div class="stat"><div class="stat-label">Air Quality</div><div class="stat-value">${d.air.aqi} · ${d.air.category}</div></div>
+      <div class="stat"><div class="stat-label">Weather</div><div class="stat-value">${d.weather.temp}°C · ${d.weather.condition}</div></div>
+      <div class="stat"><div class="stat-label">Water Level</div><div class="stat-value">${d.water.known ? d.water.level+'m' : 'Unavailable'}</div></div>
+      <div class="stat"><div class="stat-label">Energy Now</div><div class="stat-value">${d.energy.current} kW</div></div>
+      <div class="stat"><div class="stat-label">Incidents</div><div class="stat-value">${d.incidents.length} active</div></div>
+      <div class="stat"><div class="stat-label">Waste</div><div class="stat-value">${d.waste.status}</div></div>
+    </div>
+  `;
+}
+
+function renderTraffic(){
+  const d = state.data.traffic;
+  const bannerColor = d.level==="LOW" ? "var(--green)" : d.level==="MODERATE" ? "var(--amber)" : "var(--red)";
+  return `
+    <div class="detail-head"><div class="detail-title">🚗 Traffic — ${state.location.label}</div>${sourceTag('traffic')}</div>
+    <p class="detail-desc">Live congestion and speed readings for roads around the selected location.</p>
+    <div class="status-banner" style="border-color:${bannerColor};color:${bannerColor};background:${bannerColor}15;">
+      Current status: <b style="margin-left:4px;">${d.level}</b>
+    </div>
+    <div class="detail-grid">
+      <div class="stat"><div class="stat-label">Congestion</div><div class="stat-value">${d.congestion}%</div></div>
+      <div class="stat"><div class="stat-label">Avg Speed</div><div class="stat-value">${d.avgSpeed} km/h</div></div>
+      <div class="stat"><div class="stat-label">Status</div><div class="stat-value">${d.level}</div></div>
+    </div>
+    <div class="chart-wrap"><canvas id="detailChart"></canvas></div>
+  `;
+}
+
+function renderAir(){
+  const d = state.data.air;
+  const bannerColor = d.category==="Good"?"var(--green)":d.category==="Moderate"?"var(--amber)":"var(--red)";
+  return `
+    <div class="detail-head"><div class="detail-title">🌫️ Air Quality — ${state.location.label}</div>${sourceTag('air')}</div>
+    <p class="detail-desc">Air quality index and pollutant concentrations for the selected location.</p>
+    <div class="status-banner" style="border-color:${bannerColor};color:${bannerColor};background:${bannerColor}15;">
+      Overall: <b style="margin-left:4px;">${d.category}</b>
+    </div>
+    <div class="detail-grid">
+      <div class="stat"><div class="stat-label">AQI</div><div class="stat-value">${d.aqi}</div></div>
+      <div class="stat"><div class="stat-label">PM2.5</div><div class="stat-value">${d.pm25} µg/m³</div></div>
+      <div class="stat"><div class="stat-label">PM10</div><div class="stat-value">${d.pm10} µg/m³</div></div>
+      <div class="stat"><div class="stat-label">NO2</div><div class="stat-value">${d.no2} µg/m³</div></div>
+    </div>
+    <div class="chart-wrap"><canvas id="detailChart"></canvas></div>
+  `;
+}
+
+function renderWeather(){
+  const d = state.data.weather;
+  return `
+    <div class="detail-head"><div class="detail-title">🌧️ Weather — ${state.location.label}</div>${sourceTag('weather')}</div>
+    <p class="detail-desc">Current conditions for the selected location.</p>
+    <div class="detail-grid">
+      <div class="stat"><div class="stat-label">Temperature</div><div class="stat-value">${d.temp}°C</div></div>
+      <div class="stat"><div class="stat-label">Feels Like</div><div class="stat-value">${d.feelsLike}°C</div></div>
+      <div class="stat"><div class="stat-label">Humidity</div><div class="stat-value">${d.humidity}%</div></div>
+      <div class="stat"><div class="stat-label">Wind</div><div class="stat-value">${d.wind} km/h</div></div>
+      <div class="stat"><div class="stat-label">Rain Chance</div><div class="stat-value">${d.rainChance}%</div></div>
+      <div class="stat"><div class="stat-label">Condition</div><div class="stat-value">${d.condition}</div></div>
+    </div>
+  `;
+}
+
+function renderWater(){
+  const d = state.data.water;
+  if(!d.known){
+    return `
+      <div class="detail-head"><div class="detail-title">💧 Water Level — ${state.location.label}</div>${sourceTag('water')}</div>
+      <div class="status-banner" style="border-color:var(--text-dim);color:var(--text-1);background:rgba(255,255,255,.03);">
+        Live water-level data unavailable for this location.
+      </div>
+      <p class="detail-desc">No monitoring station reports for this area in the current demo dataset. In production this module would call a configured hydrology/water-board API.</p>
+    `;
+  }
+  const bannerColor = d.level > d.danger ? "var(--red)" : d.level > d.warning ? "var(--amber)" : "var(--green)";
+  return `
+    <div class="detail-head"><div class="detail-title">💧 Water Level — ${state.location.label}</div>${sourceTag('water')}</div>
+    <p class="detail-desc">Nearest monitoring station: <b>${d.station}</b></p>
+    <div class="status-banner" style="border-color:${bannerColor};color:${bannerColor};background:${bannerColor}15;">
+      Current level ${d.level}m — ${d.level>d.danger?"above danger mark":d.level>d.warning?"above warning mark":"within normal range"}
+    </div>
+    <div class="detail-grid">
+      <div class="stat"><div class="stat-label">Current</div><div class="stat-value">${d.level} m</div></div>
+      <div class="stat"><div class="stat-label">Warning Level</div><div class="stat-value">${d.warning} m</div></div>
+      <div class="stat"><div class="stat-label">Danger Level</div><div class="stat-value">${d.danger} m</div></div>
+    </div>
+    <div class="chart-wrap"><canvas id="detailChart"></canvas></div>
+  `;
+}
+
+function renderEnergy(){
+  const d = state.data.energy;
+  return `
+    <div class="detail-head"><div class="detail-title">⚡ Energy — ${state.location.label}</div>${sourceTag('energy')}</div>
+    <p class="detail-desc">Consumption trend plus a simple predicted-demand estimate (demo model, not a trained forecaster).</p>
+    <div class="detail-grid">
+      <div class="stat"><div class="stat-label">Current</div><div class="stat-value">${d.current} kW</div></div>
+      <div class="stat"><div class="stat-label">Daily Total</div><div class="stat-value">${d.daily} kWh</div></div>
+      <div class="stat"><div class="stat-label">Peak</div><div class="stat-value">${d.peak} kW</div></div>
+      <div class="stat"><div class="stat-label">Predicted Demand</div><div class="stat-value" style="color:var(--yellow)">${d.predicted} kWh</div></div>
+    </div>
+    <div class="chart-wrap"><canvas id="detailChart"></canvas></div>
+  `;
+}
+
+function renderIncidents(){
+  const d = state.data.incidents;
+  const rows = d.map(inc => {
+    const sc = inc.severity==="High"?"var(--red)":inc.severity==="Medium"?"var(--amber)":"var(--green)";
+    return `<div class="stat" style="display:flex;align-items:center;gap:12px;">
+      <span class="status-dot" style="background:${sc};width:9px;height:9px;"></span>
+      <div>
+        <div class="stat-value" style="font-size:14px;">${inc.type}</div>
+        <div class="mcard-sub">Severity ${inc.severity} · ${inc.status} · ${inc.time}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `
+    <div class="detail-head"><div class="detail-title">🚨 Incidents — ${state.location.label}</div>${sourceTag('incidents')}</div>
+    <p class="detail-desc">${d.length} active report(s) near the selected location. Marker color on the map indicates severity.</p>
+    <div class="detail-grid">${rows}</div>
+  `;
+}
+
+function renderWaste(){
+  const d = state.data.waste;
+  const bannerColor = statusColor(d.status);
+  return `
+    <div class="detail-head"><div class="detail-title">🗑️ Waste Collection — ${state.location.label}</div>${sourceTag('waste')}</div>
+    <p class="detail-desc">Municipal collection coverage for the selected location.</p>
+    <div class="status-banner" style="border-color:${bannerColor};color:${bannerColor};background:${bannerColor}15;">
+      Status: <b style="margin-left:4px;">${d.status}</b>${d.overflow ? " · ⚠️ Overflow reported in one zone" : ""}
+    </div>
+    <div class="detail-grid">
+      <div class="stat"><div class="stat-label">Coverage</div><div class="stat-value">${d.coverage}%</div></div>
+      <div class="stat"><div class="stat-label">Completed Areas</div><div class="stat-value">${d.completedAreas}</div></div>
+      <div class="stat"><div class="stat-label">Pending Areas</div><div class="stat-value">${d.pendingAreas}</div></div>
+    </div>
+  `;
+}
+
+const RENDERERS = {
+  overview: renderOverview, traffic: renderTraffic, air: renderAir, weather: renderWeather,
+  water: renderWater, energy: renderEnergy, incidents: renderIncidents, waste: renderWaste
+};
+
+function renderDetail(){
+  const panel = document.getElementById('detailPanel');
+  panel.style.display = state.activeModule === 'overview' ? 'none' : 'block';
+  panel.innerHTML = RENDERERS[state.activeModule]();
+  destroyChart();
+  const trendMap = {
+    traffic:{v:state.data.traffic.trend, color:"#f0b429", label:"Congestion %"},
+    air:{v:state.data.air.trend, color:"#b18cf2", label:"AQI"},
+    water:{v:state.data.water.trend, color:"#38bdf8", label:"Level (m)"},
+    energy:{v:state.data.energy.trend, color:"#ffd54a", label:"kW"}
+  };
+  if(trendMap[state.activeModule] && document.getElementById('detailChart') && trendMap[state.activeModule].v.length){
+    const t = trendMap[state.activeModule];
+    lineChart('detailChart', t.v.map((_,i)=>`T-${t.v.length-i}`), t.v, t.color, t.label);
+  }
+}
+
+/* ================= ALERTS ================= */
+function renderAlerts(){
+  const d = state.data;
+  const alerts = [];
+  if(d.traffic.level==="HIGH") alerts.push({icon:"🚨", text:"High traffic detected on major routes", type:"traffic"});
+  if(d.air.category==="Poor"||d.air.category==="Very Poor") alerts.push({icon:"🌫️", text:`Poor air quality — AQI ${d.air.aqi}`, type:"air"});
+  if(d.weather.rainChance>60) alerts.push({icon:"🌧️", text:`Heavy rainfall likely (${d.weather.rainChance}% chance)`, type:"weather"});
+  if(d.water.known && d.water.level>d.water.warning) alerts.push({icon:"💧", text:"Water level rising past warning mark", type:"water"});
+  if(d.energy.current>1100) alerts.push({icon:"⚡", text:"High energy demand in this area", type:"energy"});
+  d.incidents.filter(i=>i.severity==="High").forEach(i=>alerts.push({icon:"🚧", text:`${i.type} reported — high severity`, type:"incidents"}));
+  if(d.waste.overflow) alerts.push({icon:"🗑️", text:"Waste overflow reported in one zone", type:"waste"});
+
+  const list = document.getElementById('alertsList');
+  if(alerts.length===0){
+    list.innerHTML = `<div class="alert-row" style="color:var(--text-dim)">✅ No active alerts for this location right now.</div>`;
+    return;
+  }
+  list.innerHTML = alerts.map(a=>`
+    <div class="alert-row">
+      <span class="alert-icon">${a.icon}</span>
+      <span>${a.text}</span>
+      <span class="alert-time mono">just now</span>
+    </div>
+  `).join('');
+}
+
+
+/* ================= FUTURISTIC COMMAND CENTER ================= */
+const overviewCharts = {};
+
+function destroyOverviewCharts(){
+  Object.keys(overviewCharts).forEach(k=>{
+    try{ overviewCharts[k].destroy(); }catch(e){}
+    delete overviewCharts[k];
+  });
+}
+
+function miniChart(id, type, labels, values, color, fill=true){
+  const el = document.getElementById(id);
+  if(!el) return;
+  const ctx = el.getContext('2d');
+  overviewCharts[id] = new Chart(ctx,{
+    type,
+    data:{
+      labels,
+      datasets:[{
+        data:values,
+        borderColor:color,
+        backgroundColor: type==='line' ? color+'20' : color+'b8',
+        borderWidth:2,
+        tension:.38,
+        fill,
+        pointRadius:type==='line'?2.5:0,
+        pointHoverRadius:5,
+        borderRadius:type==='bar'?5:0
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#061630',borderColor:'rgba(70,145,255,.35)',borderWidth:1,
+        titleColor:'#fff',bodyColor:'#b7d0ee'
+      }},
+      scales:{
+        x:{grid:{color:'rgba(89,145,225,.055)'},ticks:{color:'#6f91b8',font:{size:9}}},
+        y:{grid:{color:'rgba(89,145,225,.055)'},ticks:{color:'#6f91b8',font:{size:9}}}
+      }
+    }
+  });
+}
+
+function renderKpis(){
+  const d=state.data;
+  const grid=document.getElementById('kpiGrid');
+  if(!grid) return;
+  const cards=[
+    {icon:'👥',label:'Total Population',value:d.population.toLocaleString(),foot:'▲ 2.4% vs last month',color:'#25d9ff'},
+    {icon:'🚗',label:'Active Traffic',value:d.traffic.congestion+'%',foot:'▼ 12% vs last hour',color:'#a66cff'},
+    {icon:'🍃',label:'Air Quality (AQI)',value:d.air.aqi,foot:d.air.category,color:'#25e6a2'},
+    {icon:'⚡',label:'Power Consumption',value:d.energy.current+' MW',foot:'▼ 8% vs yesterday',color:'#a66cff'},
+    {icon:'🎧',label:'Citizen Complaints',value:d.complaints,foot:'▼ 41% vs last week',color:'#ffc247'}
+  ];
+  grid.innerHTML=cards.map(c=>`
+    <div class="kpi-card" style="--glow:${c.color}">
+      <div class="kpi-top">
+        <div class="kpi-icon">${c.icon}</div>
+        <div class="kpi-label">${c.label}</div>
+      </div>
+      <div class="kpi-value">${c.value}</div>
+      <div class="kpi-foot"><span class="kpi-trend">${c.foot}</span></div>
+    </div>
+  `).join('');
+}
+
+function renderEnvironmentPanel(){
+  const d=state.data;
+  const rows=[
+    ['🌡️','Temperature',d.weather.temp+'°C',Math.min(100,Math.max(15,d.weather.temp*2.2))],
+    ['💧','Humidity',d.weather.humidity+'%',d.weather.humidity],
+    ['🍃','AQI',d.air.aqi+' · '+d.air.category,Math.min(100,d.air.aqi/2)],
+    ['☁️','PM2.5',d.air.pm25+' µg/m³',Math.min(100,d.air.pm25/1.5)],
+    ['🌬️','PM10',d.air.pm10+' µg/m³',Math.min(100,d.air.pm10/2)],
+    ['🔊','Noise Level',d.noise+' dB',Math.min(100,d.noise)]
+  ];
+  document.getElementById('environmentPanel').innerHTML=rows.map(r=>`
+    <div class="env-row">
+      <div class="env-icon">${r[0]}</div>
+      <div><div class="env-name">${r[1]}</div><div class="env-bar"><span style="width:${r[3]}%"></span></div></div>
+      <div class="env-value">${r[2]}</div>
+    </div>`).join('');
+}
+
+function renderOverviewCharts(){
+  if(!state.data) return;
+  destroyOverviewCharts();
+  const d=state.data;
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct'];
+  const population=months.map((_,i)=>Math.round(d.population*(.82+i*.02)));
+  const days=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const energy=d.energy.trend.slice(0,7);
+  const aqi=d.air.trend.slice(0,7);
+  const complaints=days.map((_,i)=>Math.max(5,Math.round(d.complaints*(.72 + ((i*17)%7)/20))));
+
+  miniChart('populationChart','line',months,population,'#25d9ff',true);
+  miniChart('energyOverviewChart','bar',days,energy,'#a66cff',false);
+  miniChart('aqiOverviewChart','line',days,aqi,'#25e6a2',true);
+  miniChart('complaintsOverviewChart','doughnut',
+    ['Water Supply','Roads','Electricity','Sanitation','Others'],
+    [8,6,4,3,3].map((v,i)=>Math.max(1,Math.round(v*d.complaints/24))),
+    '#3f7cff',false);
+}
+
+function renderCommandAlerts(){
+  const d=state.data;
+  const alerts=[];
+  if(d.traffic.level==='HIGH') alerts.push(['🚨','Traffic congestion','Major routes are experiencing high load.','#ff557d']);
+  if(d.air.aqi>100) alerts.push(['🌫️','Air quality warning',`AQI has reached ${d.air.aqi}.`,'#a66cff']);
+  if(d.weather.rainChance>60) alerts.push(['🌧️','Rain probability',`${d.weather.rainChance}% chance of rain.`,'#3f7cff']);
+  if(d.water.known && d.water.level>d.water.warning) alerts.push(['💧','Water level rising','Monitoring station crossed warning mark.','#ffc247']);
+  if(d.energy.current>1100) alerts.push(['⚡','Energy demand high','Peak load detected in this zone.','#ffc247']);
+  d.incidents.slice(0,2).forEach(i=>alerts.push(['🚧',i.type,`${i.severity} severity · ${i.status}`,'#ff557d']));
+  if(!alerts.length) alerts.push(['✅','System normal','All monitored services are operating normally.','#25e6a2']);
+  document.getElementById('commandAlerts').innerHTML=alerts.slice(0,5).map(a=>`
+    <div class="alert-mini">
+      <div class="alert-mini-icon" style="color:${a[3]}">${a[0]}</div>
+      <div style="flex:1"><b style="color:#e9f5ff;font-size:11px">${a[1]}</b><div style="font-size:10px;color:#7898bd;margin-top:2px">${a[2]}</div></div>
+      <span style="font-size:9px;color:#5f83ad">NOW</span>
+    </div>`).join('');
+}
+
+function renderFuturisticDashboard(){
+  if(!state.data) return;
+  renderKpis();
+  renderEnvironmentPanel();
+  renderOverviewCharts();
+  renderCommandAlerts();
+}
+
+/* ================= GLOBAL RENDER ================= */
+function renderAll(){
+  document.getElementById('locName').textContent = state.location.label;
+  document.getElementById('locName2').textContent = state.location.label.split(',')[0];
+  const levelPill = document.getElementById('levelPill');
+  levelPill.style.display = 'flex';
+  document.getElementById('levelName').textContent = state.location.level + (state.location.precise ? '' : ' (nearest verified match)');
+  document.getElementById('addressLine').textContent = state.location.precise
+    ? state.location.displayName
+    : `Exact address unavailable — showing the closest verified location. ${state.location.displayName}`;
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.module === state.activeModule));
+  renderStrip();
+  renderDetail();
+  renderAlerts();
+  renderLayerChips();
+  renderMapMarkers();
+  document.getElementById('lastUpdated').textContent = "Last updated: " + state.data.generatedAt.toLocaleTimeString();
+}
+
+/* ================= EVENTS ================= */
+document.querySelectorAll('.nav-item').forEach(item=>{
+  item.addEventListener('click', ()=>{ state.activeModule = item.dataset.module; renderAll(); });
+});
+
+document.getElementById('sidebarToggle').addEventListener('click', ()=>{
+  state.sidebarExpanded = !state.sidebarExpanded;
+  document.getElementById('app').classList.toggle('expanded', state.sidebarExpanded);
+});
+
+document.getElementById('refreshBtn').addEventListener('click', refreshData);
+
+/* ---------- Universal search: live geocoding suggestions, no fixed list ---------- */
+const searchInput = document.getElementById('searchInput');
+const suggestionsBox = document.getElementById('suggestions');
+
+function closeSuggestions(){ suggestionsBox.classList.remove('open'); suggestionsBox.innerHTML=''; }
+
+function renderGeoResults(box, results, onPick){
+  if(results.length === 0){
+    box.innerHTML = `<div class="suggestion-row" style="color:var(--text-dim)">Location not found in the available map database.</div>`;
+    box.classList.add('open');
+    return;
+  }
+  box.innerHTML = results.map((r,i)=>{
+    const parts = addressParts(r.address||{});
+    const precise = isPreciseLevel(r);
+    return `
+    <div class="suggestion-row" data-idx="${i}" style="flex-direction:column;align-items:flex-start;gap:2px;">
+      <div style="display:flex;align-items:center;gap:6px;width:100%;">
+        <span>📍</span><b>${(r.name && r.name.trim()) || r.display_name.split(',')[0]}</b>
+        <span style="margin-left:auto;font-size:9.5px;color:${precise?'var(--green)':'var(--amber)'};border:1px solid currentColor;border-radius:99px;padding:1px 8px;">${levelLabel(r)}</span>
+      </div>
+      <div style="font-size:10.5px;color:var(--text-dim);">${parts.locality!=='—'?parts.locality+' · ':''}${parts.district!=='—'?parts.district+' · ':''}${parts.state!=='—'?parts.state+' · ':''}${parts.country}</div>
+    </div>`;
+  }).join('');
+  box.classList.add('open');
+  box.querySelectorAll('.suggestion-row[data-idx]').forEach(row=>{
+    row.addEventListener('click', ()=> onPick(results[+row.dataset.idx]));
+  });
+}
+
+let searchDebounce = null;
+searchInput.addEventListener('input', ()=>{
+  const q = searchInput.value.trim();
+  clearTimeout(searchDebounce);
+  if(q.length < 3){ closeSuggestions(); return; }
+  suggestionsBox.innerHTML = `<div class="suggestion-row" style="color:var(--text-dim)">Searching the geocoding database…</div>`;
+  suggestionsBox.classList.add('open');
+  searchDebounce = setTimeout(runSearch, 450);
+});
+document.addEventListener('click', (e)=>{ if(!e.target.closest('.search-wrap')) closeSuggestions(); });
+
+async function runSearch(){
+  const q = searchInput.value.trim();
+  if(q.length < 2) return;
+  try{
+    const results = await geocodeSearch(q);
+    renderGeoResults(suggestionsBox, results, (r)=>{
+      setLocationFromResult(r);
+      closeSuggestions();
+      searchInput.value = '';
+    });
+  }catch(e){
+    if(e.name !== 'AbortError'){
+      suggestionsBox.innerHTML = `<div class="suggestion-row" style="color:var(--red)">Search failed — check your connection and try again.</div>`;
+      suggestionsBox.classList.add('open');
+    }
+  }
+}
+
+document.getElementById('searchBtn').addEventListener('click', ()=>{ clearTimeout(searchDebounce); runSearch(); });
+searchInput.addEventListener('keydown', e=>{ if(e.key==="Enter"){ e.preventDefault(); clearTimeout(searchDebounce); runSearch(); } });
+
+document.getElementById('geoBtn').addEventListener('click', ()=>{
+  const btn = document.getElementById('geoBtn');
+  const original = btn.innerHTML;
+  btn.innerHTML = "📍 Locating…";
+  if(!navigator.geolocation){
+    btn.innerHTML = "⚠️ Not supported";
+    setTimeout(()=>btn.innerHTML=original, 2000);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    async pos=>{
+      const {latitude, longitude} = pos.coords;
+      try{
+        const r = await geocodeReverse(latitude, longitude);
+        setLocationFromResult(r);
+      }catch(e){
+        state.location = {
+          label:"Your current location", displayName:`GPS: ${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+          lat:latitude, lng:longitude, level:"GPS coordinate", precise:true,
+          locality:'—', district:'—', state:'—', country:'—'
+        };
+        engineSetView(latitude, longitude, 15);
+        refreshData();
+      }
+      btn.innerHTML = original;
+    },
+    err=>{
+      let msg = "⚠️ Location unavailable";
+      if(err.code === err.PERMISSION_DENIED) msg = "⚠️ Permission denied";
+      else if(err.code === err.TIMEOUT) msg = "⚠️ Timed out";
+      btn.innerHTML = msg;
+      setTimeout(()=>btn.innerHTML=original, 2500);
+    },
+    {timeout:8000}
+  );
+});
+
+/* ================= CLOCK ================= */
+function tickClock(){
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}
+setInterval(tickClock, 1000);
+tickClock();
+
+/* ================= AUTH (demo only — in-memory for this tab/session) ================= */
+const users = {}; // email(lowercase) -> {name, email, password, preferredLocation, created}
+let currentUser = null;
+let appBooted = false;
+
+function initials(name){
+  return name.trim().split(/\s+/).slice(0,2).map(w=>w[0]?.toUpperCase()).join('') || 'U';
+}
+function validEmail(v){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+
+function showAuthError(id, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg; el.style.display = msg ? 'block' : 'none';
+}
+
+document.getElementById('tabLogin').addEventListener('click', ()=> switchAuthTab('login'));
+document.getElementById('tabRegister').addEventListener('click', ()=> switchAuthTab('register'));
+function switchAuthTab(tab){
+  document.getElementById('tabLogin').classList.toggle('active', tab==='login');
+  document.getElementById('tabRegister').classList.toggle('active', tab==='register');
+  document.getElementById('loginForm').style.display = tab==='login' ? 'block':'none';
+  document.getElementById('registerForm').style.display = tab==='register' ? 'block':'none';
+}
+
+document.querySelectorAll('.pw-toggle').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const input = document.getElementById(btn.dataset.target);
+    const reveal = input.type === 'password';
+    input.type = reveal ? 'text' : 'password';
+    btn.textContent = reveal ? '🙈' : '👁️';
+  });
+});
+
+document.getElementById('fillDemo').addEventListener('click', ()=>{
+  if(!users['demo@city.app']){
+    users['demo@city.app'] = {name:'Demo User', email:'demo@city.app', password:'demo123', preferredLocation:null, created:new Date()};
+  }
+  document.getElementById('loginEmail').value = 'demo@city.app';
+  document.getElementById('loginPassword').value = 'demo123';
+});
+
+document.getElementById('registerForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim().toLowerCase();
+  const pass = document.getElementById('regPassword').value;
+  const confirm = document.getElementById('regConfirm').value;
+
+  if(!name || !email || !pass || !confirm){ showAuthError('regError','Please fill in every field.'); return; }
+  if(!validEmail(email)){ showAuthError('regError','Enter a valid email address.'); return; }
+  if(pass.length < 6){ showAuthError('regError','Password must be at least 6 characters.'); return; }
+  if(pass !== confirm){ showAuthError('regError','Passwords do not match.'); return; }
+
+  if(backendOnline){
+    try{
+      const res = await fetch(`${BACKEND_URL}/auth/register`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({fullName:name, email, password:pass, confirmPassword:confirm})
+      });
+      const data = await res.json();
+      if(!res.ok){ showAuthError('regError', data.error || 'Registration failed.'); return; }
+      showAuthError('regError','');
+      authToken = data.token;
+      await loginWithBackendUser(data.user);
+    }catch(err){
+      showAuthError('regError','Could not reach the backend — try again.');
+    }
+    return;
+  }
+
+  if(users[email]){ showAuthError('regError','An account with this email already exists.'); return; }
+  showAuthError('regError','');
+  users[email] = {name, email, password: pass, preferredLocation:null, created:new Date()};
+  loginUser(email);
+});
+
+document.getElementById('loginForm').addEventListener('submit', async e=>{
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const pass = document.getElementById('loginPassword').value;
+
+  if(backendOnline){
+    try{
+      const res = await fetch(`${BACKEND_URL}/auth/login`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({email, password:pass})
+      });
+      const data = await res.json();
+      if(!res.ok){ showAuthError('loginError', data.error || 'Incorrect email or password.'); return; }
+      showAuthError('loginError','');
+      authToken = data.token;
+      await loginWithBackendUser(data.user);
+    }catch(err){
+      showAuthError('loginError','Could not reach the backend — try again.');
+    }
+    return;
+  }
+
+  const u = users[email];
+  if(!u || u.password !== pass){ showAuthError('loginError','Incorrect email or password.'); return; }
+  showAuthError('loginError','');
+  loginUser(email);
+});
+
+function bootDashboard(){
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('app').style.display = 'grid';
+  document.getElementById('avatarBtn').textContent = initials(currentUser.name);
+  if(!appBooted){
+    appBooted = true;
+    initMap(); // initMap triggers the first refreshData()/renderEmptyState() itself once the map engine is ready
+    setInterval(()=>{ if(state.location) refreshData(); }, 45000); // passive local refresh only, no external calls
+  } else if(state.location){
+    engineSetView(state.location.lat, state.location.lng, 13);
+    refreshData();
+  } else {
+    renderEmptyState();
+  }
+}
+
+// Demo (in-memory, no backend) login path
+function loginUser(email){
+  currentUser = users[email];
+  state.location = currentUser.preferredLocation ? {...currentUser.preferredLocation} : null;
+  bootDashboard();
+}
+
+// Real backend login path — normalizes the server's user shape to match
+// what the rest of the dashboard (profile panel, avatar, etc.) expects.
+async function loginWithBackendUser(user){
+  currentUser = {
+    id: user.id,
+    name: user.fullName,
+    email: user.email,
+    created: new Date(user.createdAt || Date.now()),
+    preferredLocation: null
+  };
+  state.location = null;
+  try{
+    const res = await fetch(`${BACKEND_URL}/profile`, {headers: authHeaders()});
+    if(res.ok){
+      const data = await res.json();
+      if(data.preferredLocation){
+        currentUser.preferredLocation = data.preferredLocation;
+        state.location = {...data.preferredLocation};
+      }
+    }
+  }catch(e){ /* proceed without a preferred location */ }
+  bootDashboard();
+}
+
+function logoutUser(){
+  if(backendOnline && authToken){
+    fetch(`${BACKEND_URL}/auth/logout`, {method:'POST', headers: authHeaders()}).catch(()=>{});
+  }
+  authToken = null;
+  currentUser = null;
+  closeProfile();
+  document.getElementById('loginForm').reset();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+  switchAuthTab('login');
+}
+
+/* ================= PROFILE PANEL ================= */
+const profileBackdrop = document.getElementById('profileBackdrop');
+document.getElementById('avatarBtn').addEventListener('click', openProfile);
+profileBackdrop.addEventListener('click', e=>{ if(e.target === profileBackdrop) closeProfile(); });
+document.getElementById('logoutBtn').addEventListener('click', logoutUser);
+
+const profileLocationInput = document.getElementById('profileLocationInput');
+const profileSuggestions = document.getElementById('profileSuggestions');
+let profilePendingLocation = null;
+let profileSearchDebounce = null;
+
+function closeProfileSuggestions(){ profileSuggestions.classList.remove('open'); profileSuggestions.innerHTML=''; }
+
+profileLocationInput.addEventListener('input', ()=>{
+  const q = profileLocationInput.value.trim();
+  clearTimeout(profileSearchDebounce);
+  if(q.length < 3){ closeProfileSuggestions(); return; }
+  profileSuggestions.innerHTML = `<div class="suggestion-row" style="color:var(--text-dim)">Searching…</div>`;
+  profileSuggestions.classList.add('open');
+  profileSearchDebounce = setTimeout(async ()=>{
+    try{
+      const results = await geocodeSearch(q);
+      renderGeoResults(profileSuggestions, results, (r)=>{
+        profilePendingLocation = r;
+        const parts = addressParts(r.address||{});
+        profileLocationInput.value = (r.name && r.name.trim()) || r.display_name.split(',')[0];
+        closeProfileSuggestions();
+      });
+    }catch(e){
+      if(e.name !== 'AbortError'){
+        profileSuggestions.innerHTML = `<div class="suggestion-row" style="color:var(--red)">Search failed — try again.</div>`;
+      }
+    }
+  }, 450);
+});
+document.addEventListener('click', (e)=>{ if(!e.target.closest('#profileLocationInput') && !e.target.closest('#profileSuggestions')) closeProfileSuggestions(); });
+
+function openProfile(){
+  if(!currentUser) return;
+  document.getElementById('profileAvatarInitials').textContent = initials(currentUser.name);
+  document.getElementById('profileName').textContent = currentUser.name;
+  document.getElementById('profileEmail').textContent = currentUser.email;
+  document.getElementById('profileNameInput').value = currentUser.name;
+  profilePendingLocation = null;
+  profileLocationInput.value = currentUser.preferredLocation ? currentUser.preferredLocation.label : '';
+  document.getElementById('profileCreated').textContent = currentUser.created.toLocaleDateString();
+  setProfileEditMode(false);
+  profileBackdrop.classList.add('open');
+}
+function closeProfile(){ profileBackdrop.classList.remove('open'); closeProfileSuggestions(); }
+
+function setProfileEditMode(editing){
+  document.getElementById('profileNameInput').disabled = !editing;
+  profileLocationInput.disabled = !editing;
+  document.getElementById('profileEditBtn').style.display = editing ? 'none' : 'flex';
+  document.getElementById('profileSaveBtn').style.display = editing ? 'flex' : 'none';
+}
+document.getElementById('profileEditBtn').addEventListener('click', ()=> setProfileEditMode(true));
+document.getElementById('profileSaveBtn').addEventListener('click', async ()=>{
+  const newName = document.getElementById('profileNameInput').value.trim();
+  if(newName) currentUser.name = newName;
+
+  let newPreferredLocation = null;
+  if(profilePendingLocation){
+    const r = profilePendingLocation;
+    const parts = addressParts(r.address||{});
+    newPreferredLocation = {
+      label: (r.name && r.name.trim()) || r.display_name.split(',')[0],
+      displayName: r.display_name, lat: parseFloat(r.lat), lng: parseFloat(r.lon),
+      level: levelLabel(r), precise: isPreciseLevel(r),
+      locality: parts.locality, district: parts.district, state: parts.state, country: parts.country
+    };
+    currentUser.preferredLocation = newPreferredLocation;
+    setLocationFromResult(r);
+    profilePendingLocation = null;
+  }
+
+  if(backendOnline && authToken){
+    try{
+      await fetch(`${BACKEND_URL}/profile`, {
+        method:'PUT',
+        headers:{'Content-Type':'application/json', ...authHeaders()},
+        body: JSON.stringify({fullName: newName || undefined, preferredLocation: newPreferredLocation || undefined})
+      });
+    }catch(e){ /* profile still updates locally even if the save call fails */ }
+  }
+
+  document.getElementById('avatarBtn').textContent = initials(currentUser.name);
+  document.getElementById('profileName').textContent = currentUser.name;
+  setProfileEditMode(false);
+});
+
+/* ================= BOOT ================= */
+pingBackend();
+</script>
+</body>
+</html>
